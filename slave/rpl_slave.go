@@ -1,0 +1,3 @@
+package slave
+
+const SLAVE_MAX_HEARTBEAT_PERIOD = 4294967

@@ -8,11 +8,11 @@ MySQL Facility in Go
 * index
 	* Secondary index creator by repl
 	* Store in redis,ledis
-* driver
-	* Yet another mysql driver implement database/sql
+* proxy
 * server
 	* MySQL driver
-
+* driver
+	* Yet another mysql driver implement database/sql
 Motivation
 ==========
 * Learn go
