@@ -2,8 +2,8 @@ package slave
 import (
 	. "../proto"
 )
-type LogEventType Int1
-type LogEventFlag Int2
+type LogEventType uint8
+type LogEventFlag uint16
 
 const (
 

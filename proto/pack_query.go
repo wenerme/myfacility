@@ -33,7 +33,7 @@ type ColumnDefinition struct {
 	Decimals      uint8
 	DefaultValues string
 }
-func (p *ColumnDefinition)Read(c *Reader) {
+func (p *ColumnDefinition)Read(c Reader) {
 	c.Get(&p.Catalog,
 		&p.Schema,
 		&p.Table,
@@ -48,11 +48,11 @@ func (p *ColumnDefinition)Read(c *Reader) {
 		&p.Decimals)
 	c.SkipBytes(2)// filter
 
-	if c.Com ==  COM_FIELD_LIST {
-		c.Get(&p.DefaultValues)
-	}
+	//	if c.Com ==  COM_FIELD_LIST {
+	//		c.Get(&p.DefaultValues)
+	//	}
 }
-func (p *ColumnDefinition)Write(c *Writer) {
+func (p *ColumnDefinition)Write(c Writer) {
 	c.Put(&p.Catalog,
 		&p.Schema,
 		&p.Table,
@@ -67,9 +67,9 @@ func (p *ColumnDefinition)Write(c *Writer) {
 		&p.Decimals)
 	c.PutZero(2)// filter
 
-	if c.Com ==  COM_FIELD_LIST {
-		c.Put(&p.DefaultValues)
-	}
+	//	if c.Com ==  COM_FIELD_LIST {
+	//		c.Put(&p.DefaultValues)
+	//	}
 }
 
 

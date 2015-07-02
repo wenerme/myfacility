@@ -5,21 +5,33 @@ import (
 	"errors"
 	"reflect"
 	"io/ioutil"
+	"io"
 )
 
-type Reader struct {
-	*bufio.Reader
-	Cap          Capability
-	CharacterSet int
-	Com          CommandType
+type Reader interface {
+	Get(...interface{})
+	GetType(interface{}, ProtoType) (int, error)
+	SkipBytes(int)
+	More() bool
+	HasCap(Capability) bool
+}
+type Writer interface {
+	Put(...interface{})
+	PutType(interface{}, ProtoType) (int, error)
+	PutZero(int)
+	HasCap(Capability) bool
 }
 
-type Writer struct {
-	*bufio.Writer
-	Cap          Capability
-	CharacterSet int
-	Com          CommandType
+type BufReader struct {
+	*bufio.Reader
+	cap Capability
 }
+
+type BufWriter struct {
+	*bufio.Writer
+	cap Capability
+}
+
 
 type ProtoType int
 const (
@@ -37,15 +49,28 @@ const (
 	StrVar  // string<var/fix>	    Protocol::VariableLengthString:
 )
 
-func (r *Reader)SkipBytes(n int) *Reader {
+func (r *BufWriter)SetCap(cap Capability) {
+	r.cap = cap
+}
+func (r *BufReader)More() bool {
+	_, err := r.Peek(1)
+	if err ==nil {
+		return true
+	}else if err == io.EOF {
+		return false
+	}else {
+		panic(err)
+	}
+}
+
+func (r *BufReader)SkipBytes(n int) {
 	for i := 0; i < n; i ++ {
 		_, err := r.ReadByte()
 		if err != nil {panic(err) }
 	}
-	return t
 }
 
-func (r *Reader)Get(values... interface{}) *Reader {
+func (r *BufReader)Get(values... interface{}) {
 	n := len(values)
 	for i := 0; i < n; i ++ {
 		v := values[i]
@@ -55,6 +80,11 @@ func (r *Reader)Get(values... interface{}) *Reader {
 				t = ty
 				i ++
 			}
+		}
+
+		if v == nil { panic(fmt.Sprintf("Can not get %T(nil)", v)) }
+		if reflect.ValueOf(v).CanAddr() {
+			panic(fmt.Sprintf("Must use a addressable value instead of %T(%v)", v, v))
 		}
 
 		if t == UndType {
@@ -72,7 +102,7 @@ func (r *Reader)Get(values... interface{}) *Reader {
 				case *string, *[]byte:
 				t = StrEnc
 				default:
-				panic(errors.New(fmt.Sprintf("Can not get type %v", t)))
+				panic(errors.New(fmt.Sprintf("Can not get type of %T", v)))
 			}
 		}else if t == StrVar {
 			// need specified a size
@@ -84,9 +114,9 @@ func (r *Reader)Get(values... interface{}) *Reader {
 					if err != nil {panic(err)}
 					switch v.(type){
 						case *string:
-						*v = string(buf)
+						*v.(*string) = string(buf)
 						case *[]byte:
-						*v = buf
+						*v.(*[]byte) = buf
 					}
 					continue
 				}else {
@@ -99,10 +129,14 @@ func (r *Reader)Get(values... interface{}) *Reader {
 		_, err := r.GetType(v, t)
 		if err != nil {panic(err)}
 	}
-	return r
 }
-func (r *Reader)GetType(v interface{}, t ProtoType) (n int, err error) {
+func (r *BufReader)GetType(v interface{}, t ProtoType) (n int, err error) {
 	val := reflect.ValueOf(v)
+	if !val.CanSet() {
+		if val = val.Elem(); !val.CanSet() {
+			return 0, errors.New(fmt.Sprintf("Must use a addressable value instead of %T(%v)", v, v))
+		}
+	}
 	var buf []byte
 	TYPE_SWITCH:
 	switch t{
@@ -158,30 +192,54 @@ func (r *Reader)GetType(v interface{}, t ProtoType) (n int, err error) {
 		var size uint32
 		_, err=r.GetType(&size, IntEnc)
 		if err != nil {break}
-		buf = make([]byte, size)
-		n, err= r.Read(buf)
+		bytes := make([]byte, size)
+		n, err= r.Read(bytes)
 		if err != nil {break }
-		val.SetString(string(buf))
+		// How about use val.Set
+		switch v.(type){
+			case *string:
+			*v.(*string) = string(bytes)
+			case *[]byte:
+			*v.(*[]byte) = bytes
+			default:
+			goto CAN_NOT_GET
+		}
 	case StrEof:
 		bytes, e := ioutil.ReadAll(r)
 		if e != nil {err = e; break}
 		n = len(bytes)
-		val.SetString(string(bytes))
+		switch v.(type){
+			case *string:
+			*v.(*string) = string(bytes)
+			case *[]byte:
+			*v.(*[]byte) = bytes
+			default:
+			goto CAN_NOT_GET
+		}
 	case StrNul:
 		bytes, e := r.ReadBytes(0)
 		if e != nil {err = e; break}
 		n = len(bytes)
-		val.SetString(string(bytes))
+		bytes = bytes[:n-1]// drop the nul
+		switch v.(type){
+			case *string:
+			*v.(*string) = string(bytes)
+			case *[]byte:
+			*v.(*[]byte) = bytes
+			default:
+			goto CAN_NOT_GET
+		}
+
 	default:
-		err = errors.New(fmt.Sprintf("Can not get type %v", t))
+		goto CAN_NOT_GET
 	}
+	return
+	CAN_NOT_GET:
+	err = errors.New(fmt.Sprintf("Can not get type %v", t))
 	return
 }
 
-
-
-
-func (w *Writer)Put(values...interface{}) {
+func (w *BufWriter)Put(values...interface{}) {
 	n := len(values)
 	for i := 0; i < n; i ++ {
 		v := values[i]
@@ -189,47 +247,73 @@ func (w *Writer)Put(values...interface{}) {
 		if i < n-1 {
 			if ty, ok := values[i+1].(ProtoType); ok {
 				t = ty
+				i ++
 			}
+		}
+
+		if v == nil { panic(fmt.Sprintf("Can not put %T(nil)", v)) }
+		va := reflect.ValueOf(v)
+		if va.Kind() == reflect.Ptr {
+			v = va.Elem().Interface()
 		}
 
 		if t == UndType {
 			switch v.(type){
-				case *uint8:
+				case uint8:
 				t = Int1
-				case *uint16:
+				case uint16:
 				t = Int2
-				case *uint32:
+				case uint32:
 				t = Int4
-				case *uint64:
+				case uint64:
 				t = Int8
-				case *uint:
+				case uint:
 				t = IntEnc
-				case *string, *[]byte:
+				case string, []byte:
 				t = StrEnc
 				default:
-				panic(errors.New(fmt.Sprintf("Can not get type %v", t)))
+				panic(errors.New(fmt.Sprintf("Can not get type of %T", v)))
+			}
+		}else if t == StrVar {
+			// need specified a size
+			if i < n-1 {
+				if size, ok := values[i+1].(int); ok {
+					i ++
+					switch v.(type){
+						case string:
+						w.Write([]byte(v.(string))[0:size])
+						case []byte:
+						w.Write(v.([]byte)[0:size])
+					}
+					continue
+				}else {
+					panic(errors.New("Type StrVar need a int type size"))
+				}
+			}else {
+				panic(errors.New("Type StrVar need a size"))
 			}
 		}
 		_, err := w.PutType(v, t)
 		if err != nil {panic(err)}
 	}
-	return w
 }
-func (w *Writer)PutZero(n int) *Writer {
+func (w *BufWriter)PutZero(n int) {
 	for i := 0; i < n; i ++ {
 		err := w.WriteByte(0)
 		if err != nil { panic(err) }
 	}
-	return w
 }
-func (w *Writer)PutType(v interface{}, t ProtoType) (n int, err error) {
+func (w *BufWriter)PutType(v interface{}, t ProtoType) (n int, err error) {
 	val := reflect.ValueOf(v)
+	if val.Kind() == reflect.Ptr || val.Kind() == reflect.Interface {
+		val = val.Elem()
+	}
 	var buf []byte
 	TYPE_SWITCH:
+	if err != nil {return }
 	switch t{
-	case Int1: {
+	case Int1:
 		err = w.WriteByte(byte(val.Uint()))
-	}
 	case Int2:
 		buf = make([]byte, 2)
 		u := val.Uint()
@@ -259,23 +343,77 @@ func (w *Writer)PutType(v interface{}, t ProtoType) (n int, err error) {
 		i := val.Uint()
 		if i < 251 {
 			n = 1
-			w.Write(byte(i))
+			w.WriteByte(byte(i))
 			break
 		}
+		n ++
 		switch  {
 		case i < 0xffff:
+			err = w.WriteByte(252)
 			t = Int2
 		case i < 0xffffff:
+			err = w.WriteByte(253)
 			t = Int3
 		default:
+			err = w.WriteByte(254)
 			t = Int8
 		}
 		goto TYPE_SWITCH
 	case StrEnc:
-	case StrEof:
+		var bytes []byte
+		switch v.(type){
+			case string:
+			bytes = []byte(v.(string))
+			case []byte:
+			bytes = v.([]byte)
+			default:
+			goto CAN_NOT_PUT
+		}
+		if n, err = w.PutType(uint64(len(bytes)), IntEnc); err == nil {
+			writeed := n
+			n, err = w.Write(bytes)
+			n += writeed
+		}
+	case StrEof, StrVar:
+		switch v.(type){
+			case string:
+			n, err = w.Write([]byte(v.(string)))
+			case []byte:
+			n, err = w.Write(v.([]byte))
+			default: goto CAN_NOT_PUT
+		}
 	case StrNul:
+		switch v.(type){
+			case string:
+			n, err = w.Write([]byte(v.(string)))
+			case []byte:
+			n, err = w.Write(v.([]byte))
+			default: goto CAN_NOT_PUT
+		}
+		if err == nil {
+			err = w.WriteByte(0)
+			n ++
+		}
 	default:
-		err = errors.New(fmt.Sprintf("Can not put type %v", t))
 	}
 	return
+	CAN_NOT_PUT:
+	err = errors.New(fmt.Sprintf("Can not put type %v", t))
+	return
+}
+
+func (r *BufWriter)Cap() Capability {
+	return r.cap
+}
+func (r *BufWriter)HasCap(cap Capability) bool {
+	return r.cap.Has(cap)
+}
+func (r *BufReader)SetCap(cap Capability) {
+	r.cap = cap
+}
+func (r *BufReader)Cap() Capability {
+	return r.cap
+}
+func (r *BufReader)HasCap(cap Capability) bool {
+	return r.cap.Has(cap)
 }

@@ -1,24 +1,8 @@
 package proto
 import (
 	"math"
+//	"golang.org/x/tools/cmd/stringer"
 )
-
-
-
-// General Pack interface
-// Will not return error, you can use recover to capture
-type Pack interface {
-	WritablePack
-	ReadablePack
-}
-
-type WritablePack interface {
-	Write(c *PackWriter)
-}
-
-type ReadablePack interface {
-	Read(c *PackReader)
-}
 
 //
 // If a MySQL client or server wants to send data, it:
@@ -44,21 +28,19 @@ type ReadablePack interface {
 // payload: 0x01
 //
 // <a href=http://dev.mysql.com/doc/internals/en/mysql-packet.html>mysql-packet</a>
-//
 type Packet struct {
 	//	PayloadLength Int3
 	SequenceId uint64
 	Payload    []byte
 }
 
-func (p *Packet)Read(c *PackReader) {
-	len := c.MustReadInt3()
-	c.MustRead(&p.SequenceId)
-	p.Payload = c.MustReadStrV(uint(len))
+func (p *Packet)Read(c Reader) {
+	var len uint
+	c.Get(&len, &p.SequenceId, &p.Payload, StrVar, int(len))
 }
 
-func (p *Packet)Write(c *PackWriter) {
-	c.MustWriteAll(Int3(len(p.Payload)), p.SequenceId, p.Payload)
+func (p *Packet)Write(c Writer) {
+	c.Put(uint(len(p.Payload)), p.SequenceId, p.Payload, StrEof)
 }
 
 //
@@ -114,76 +96,85 @@ func (p *Packet)Write(c *PackWriter) {
 //
 // <a href=http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeV10>HandshakeV10</a>
 //
-type HandshakeV10 struct {
-	ProtocolVersion   uint8
-	ServerVersion     string
-	ConnectionId      uint32
-	Challenge1        string
-	Capability        uint32
-	CharacterSet      uint64
-	Status            uint16
-	Challenge2        string
-	AuthPluginDataLen uint64
-	AuthPluginName    string
+type Handshake struct {
+	ProtocolVersion uint8
+	ServerVersion   string
+	ConnectionId    uint32
+	Challenge1      string
+	Capability      uint32
+	CharacterSet    uint8
+	Status          uint16
+	Challenge2      string
+	AuthPluginName  string
 }
-func (p *HandshakeV10)Read(c *Reader) {
-	c.Get(&p.ProtocolVersion, &p.ServerVersion, StrNul, &p.ConnectionId, &p.Challenge1, StrVar, 8)
+func (p *Handshake)Read(c Reader) {
+	c.Get(
+		&p.ProtocolVersion,
+		&p.ServerVersion, StrNul,
+		&p.ConnectionId,
+		&p.Challenge1, StrVar, 8,
+	)
 	//  1              [00] filler
 	c.SkipBytes(1)
+	var t uint16
+	c.Get(&t)
+	p.Capability = uint32(t)
+	if c.More() {
+		c.Get(&p.CharacterSet, &p.Status)
+		c.Get(&t)
+		p.Capability |= uint32(t) << 16
 
-
-	if c.HasMore() {
-		c.MustReadAll(&p.CharacterSet, &p.Status)
-		p.Capability |= uint32(uint16(c.MustReaduint16())) << 16
-
-		if c.HasCapability(CLIENT_PLUGIN_AUTH) {
-			c.MustRead(&p.AuthPluginDataLen)
+		var authPluginDataLen uint8
+		if c.HasCap(CLIENT_PLUGIN_AUTH) {
+			c.Get(&authPluginDataLen)
 		}else {
-			c.MustReaduint64()
+			c.SkipBytes(1)
 		}
 
 		//string[10]     reserved (all [00])
-		c.MustReadStrF(10)
+		c.SkipBytes(10)
 
-		if c.HasCapability(CLIENT_SECURE_CONNECTION) {
+		if c.HasCap(CLIENT_SECURE_CONNECTION) {
 			// ($len=MAX(13, length of auth-plugin-data - 8))
 			// -1 to strip the last \x00 char
-			p.Challenge2 = c.MustReadStrV(uint(math.Max(13, float64(p.AuthPluginDataLen)-8)) - 1)
-			c.MustReaduint64()// waste the \x00 char
+			c.Get(&p.Challenge2, StrVar, int(math.Max(13, float64(authPluginDataLen)-8)) - 1)
+			c.SkipBytes(1)// waste the \x00 char
 		}
 
-		if c.HasCapability(CLIENT_PLUGIN_AUTH) {
-			c.MustRead(&p.AuthPluginName)
+		if c.HasCap(CLIENT_PLUGIN_AUTH) {
+			c.Get(&p.AuthPluginName, StrNul)
 		}
 	}
 }
 
-func (p *HandshakeV10)Write(c PackWriter) {
-	c.MustWriteAll(&p.ProtocolVersion, &p.ServerVersion, &p.ConnectionId,
-		p.Challenge1[0:8], // len = 8
-		uint64(0), // filter
-		uint16(p.Capability&0xffff), // lower
+func (p *Handshake)Write(c Writer) {
+	c.Put(
+		&p.ProtocolVersion,
+		&p.ServerVersion, StrNul,
+		&p.ConnectionId,
+		p.Challenge1, StrVar, 8, // len = 8
+		uint8(0), // filter
+		uint16(p.Capability), // lower
 		&p.CharacterSet, &p.Status,
 		uint16(p.Capability >> 16), // upper
 	)
 
-	if c.HasCapability(CLIENT_PLUGIN_AUTH) {
-		c.MustWrite(&p.AuthPluginDataLen)
+	if c.HasCap(CLIENT_PLUGIN_AUTH) {
+		c.Put(uint8(len(p.Challenge2) + 8 + 1))
 	}else {
-		c.MustWriteuint64(0)
+		c.PutZero(1)
 	}
-
 
 	//string[10]     reserved (all [00])
-	c.MustWriteNuint64(10, 0)
+	c.PutZero(10)
 
-	if c.HasCapability(CLIENT_SECURE_CONNECTION) {
-		c.MustWriteStrV(p.Challenge2)
-		c.MustWriteuint64(0)
+	if c.HasCap(CLIENT_SECURE_CONNECTION) {
+		c.Put(p.Challenge2, StrNul)
+		//		c.PutZero(1)
 	}
 
-	if c.HasCapability(CLIENT_PLUGIN_AUTH) {
-		c.MustWrite(&p.AuthPluginName)
+	if c.HasCap(CLIENT_PLUGIN_AUTH) {
+		c.Put(&p.AuthPluginName, StrNul)
 	}
 }
 //
@@ -243,10 +234,10 @@ func (p *HandshakeV10)Write(c PackWriter) {
 //
 // <a href="http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse41">HandshakeResponse41</a>
 //
-type HandshakeResponse41 struct {
+type HandshakeResponse struct {
 	Capability     uint32
 	MaxPacketSize  uint32
-	CharacterSet   uint64
+	CharacterSet uint8
 	//string[23]     reserved (all [0])
 	Username       string
 	AuthResponse   []byte
@@ -255,73 +246,78 @@ type HandshakeResponse41 struct {
 	Attributes     map[string]string
 }
 
-func (p *HandshakeResponse41)Read(c *PackReader) {
-	c.MustReadAll(&p.Capability, &p.MaxPacketSize, &p.CharacterSet)
+func (p *HandshakeResponse)Read(c *BufReader) {
+	c.Get(&p.Capability, &p.MaxPacketSize, &p.CharacterSet)
 	//  string[23]     reserved (all [0])
-	c.MustReadStrF(23)
-	c.MustRead(&p.Username)
+	c.SkipBytes(23)
+	c.Get(&p.Username, StrNul)
 
-	if c.HasCapability(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
-		l := c.MustReadIntL()
-		p.AuthResponse = stringc.MustReadStrF(uint(l)))
-	}else if c.HasCapability(CLIENT_SECURE_CONNECTION) {
-		l := c.MustReaduint64()
-		p.AuthResponse = stringc.MustReadStrF(uint(l)))
+	if c.HasCap(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
+		c.Get(&p.AuthResponse)
+	}else if c.HasCap(CLIENT_SECURE_CONNECTION) {
+		var n uint8
+		c.Get(&n, &p.AuthResponse, StrVar, int(n))
 	}else {
-		p.AuthResponse = stringc.MustReadStrN())
+		c.Get(&p.AuthResponse, StrNul)
 	}
 
-	if c.HasCapability(CLIENT_CONNECT_WITH_DB) {
-		c.MustRead(&p.Database)
+	if c.HasCap(CLIENT_CONNECT_WITH_DB) {
+		c.Get(&p.Database, StrNul)
 	}
-	if c.HasCapability(CLIENT_PLUGIN_AUTH) {
-		c.MustRead(&p.AuthPluginName)
+	if c.HasCap(CLIENT_PLUGIN_AUTH) {
+		c.Get(&p.AuthPluginName, StrNul)
 	}
 
-	if c.HasCapability(CLIENT_CONNECT_ATTRS) {
-		c.MustReadIntL()// length
+	if c.HasCap(CLIENT_CONNECT_ATTRS) {
+		var len uint
+		var k, v string
+		c.Get(&len)// length
 		p.Attributes = make(map[string]string)
-		for c.HasMore() {
-			k, v := c.MustReadStrL(), c.MustReadStrL()
-			p.Attributes[string(k)]=string(v)
+		for c.More() {
+			c.Get(&k, &v)
+			p.Attributes[k]=v
 		}
 	}
 }
 
-func (p *HandshakeResponse41)Write(c *PackWriter) {
-	c.MustWriteAll(&p.Capability, &p.MaxPacketSize, &p.CharacterSet)
+func (p *HandshakeResponse)Write(c *BufWriter) {
+	c.Put(&p.Capability, &p.MaxPacketSize, &p.CharacterSet)
 	//  string[23]     reserved (all [0])
-	c.MustWriteNuint64(23, 0)
-	c.MustWrite(&p.Username)
+	c.PutZero(23)
+	c.Put(&p.Username, StrNul)
 
-	if c.HasCapability(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
-		c.MustWriteIntL(uint(len(p.AuthResponse)))
-		c.MustWriteStrF(string(p.AuthResponse))
-	}else if c.HasCapability(CLIENT_SECURE_CONNECTION) {
-		c.MustWriteuint64(uint64(len(p.AuthResponse)))
-		c.MustWriteStrF(string(p.AuthResponse))
+	if c.HasCap(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
+		c.Put(p.AuthResponse)
+	}else if c.HasCap(CLIENT_SECURE_CONNECTION) {
+		c.Put(uint8(len(p.AuthResponse)), p.AuthResponse, StrEof)
 	}else {
-		c.MustWriteStrN(string(p.AuthResponse))
+		c.Put(p.AuthResponse, StrNul)
 	}
 
-	if c.HasCapability(CLIENT_CONNECT_WITH_DB) {
-		c.MustWrite(&p.Database)
+	if c.HasCap(CLIENT_CONNECT_WITH_DB) {
+		c.Put(&p.Database, StrNul)
 	}
-	if c.HasCapability(CLIENT_PLUGIN_AUTH) {
-		c.MustWrite(&p.AuthPluginName)
+	if c.HasCap(CLIENT_PLUGIN_AUTH) {
+		c.Put(&p.AuthPluginName, StrNul)
 	}
 
-	if c.HasCapability(CLIENT_CONNECT_ATTRS) {
-		l := 0
+	if c.HasCap(CLIENT_CONNECT_ATTRS) {
+		var l uint
 		for k, v := range p.Attributes {
 			kl, vl := uint(len(k)), uint(len(v))
-			l += int(kl)+int(vl)
-			l += kl.Len()+vl.Len()
+			l += kl + vl + bytesOfIntVar(uint64(kl))+ bytesOfIntVar(uint64(vl))
 		}
-		c.MustWriteIntL(uint(l))
+		c.Put(uint(l))
 		for k, v := range p.Attributes {
-			c.MustWriteStrL(string(k))
-			c.MustWriteStrL(string(v))
+			c.Put(k, v)
 		}
+	}
+}
+
+func bytesOfIntVar(i uint64) uint {
+	switch {
+	case i<251:return 1
+	case i<0xffff:return 3
+	default: return 8
 	}
 }

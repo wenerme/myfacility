@@ -32,7 +32,6 @@ type PW struct {
 	SequenceId   uint32
 	ConnectionId uint32
 
-
 }
 type Basic struct {
 	Payload      []byte

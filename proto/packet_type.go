@@ -3,6 +3,11 @@ package proto
 type PackType uint8
 const (
 	OK CommandType = 0
-	ERR CommandType = 0xFF
-	EOF CommandType = 0xFE
+	ERR = 0xFF
+	EOF = 0xFE
+	HANDSHAKE_PACK = iota + 0xFF
+	HANDSHAKE_RESPONSE_PACK
+	QUERY_RESPONSE_PACK
+
+
 )

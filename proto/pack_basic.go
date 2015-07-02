@@ -1,8 +1,6 @@
 package proto
 
-
-
-// 
+//
 // If CLIENT_PROTOCOL_41 is enabled, the EOF packet contains a warning count and status flags.
 // <pre>
 // <b>Caution</b>
@@ -24,16 +22,16 @@ type EOFPack struct {
 	Warnings uint16
 	Status   uint16
 }
-func (p *EOFPack)Read(c PackReader) {
-	c.MustRead(&p.Header)
-	if c.HasCapability(CLIENT_PROTOCOL_41) {
-		c.MustReadAll(&p.Warnings, &p.Status)
+func (p *EOFPack)Read(c Reader) {
+	c.Get(&p.Header)
+	if c.HasCap(CLIENT_PROTOCOL_41) {
+		c.Get(&p.Warnings, &p.Status)
 	}
 }
-func (p *EOFPack)Write(c *PackWriter) {
-	c.MustWrite(&p.Header)
-	if c.HasCapability(CLIENT_PROTOCOL_41) {
-		c.MustWriteAll(&p.Warnings, &p.Status)
+func (p *EOFPack)Write(c Writer) {
+	c.Put(&p.Header)
+	if c.HasCap(CLIENT_PROTOCOL_41) {
+		c.Put(&p.Warnings, &p.Status)
 	}
 }
 
@@ -62,19 +60,19 @@ type ERRPack struct {
 	SQLState       string
 	ErrorMessage   string
 }
-func (p *ERRPack)Read(c *Reader) {
+func (p *ERRPack)Read(c Reader) {
 	c.Get(&p.Header, &p.ErrorCode)
-	if c.Cap.Has(CLIENT_PROTOCOL_41) {
+	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Get(&p.SQLStateMarker, StrVar, 1, &p.SQLState, StrVar, 5)
 	}
 	c.Get(&p.ErrorMessage, StrEof)
 }
-func (p *ERRPack)Write(c *Writer) {
+func (p *ERRPack)Write(c Writer) {
 	c.Put(&p.Header, &p.ErrorCode)
-	if c.Cap.Has(CLIENT_PROTOCOL_41) {
+	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Put(&p.SQLStateMarker, StrVar, 1, &p.SQLState, StrVar, 5)
 	}
-	c.Put(&p.ErrorMessage)
+	c.Put(&p.ErrorMessage, StrEof)
 }
 func (p ERRPack)Error() string {
 	return string(p.ErrorMessage)
@@ -120,15 +118,15 @@ type OKPack struct {
 	SessionState string
 }
 
-func (p *OKPack)Read(c *Reader) {
+func (p *OKPack)Read(c Reader) {
 	c.Get(&p.Header, &p.AffectedRows, IntEnc, &p.LastInsertId, IntEnc)
-	if c.Cap.Has(CLIENT_PROTOCOL_41) {
+	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Get(&p.Warnings, &p.Status)
-	}else if c.Cap.Has(CLIENT_TRANSACTIONS) {
+	}else if c.HasCap(CLIENT_TRANSACTIONS) {
 		c.Get(&p.Status)
 	}
 
-	if c.Cap.Has(CLIENT_SESSION_TRACK) {
+	if c.HasCap(CLIENT_SESSION_TRACK) {
 		c.Get(&p.Info)
 		if Status(p.Status).Has(SERVER_SESSION_STATE_CHANGED) {
 			c.Get(&p.SessionState)
@@ -137,15 +135,15 @@ func (p *OKPack)Read(c *Reader) {
 		c.Get(&p.Info, StrEof)
 	}
 }
-func (p *OKPack)Write(c *Writer) {
-	c.Put(&p.Header, &p.AffectedRows, &p.LastInsertId)
-	if c.Cap.Has(CLIENT_PROTOCOL_41) {
+func (p *OKPack)Write(c Writer) {
+	c.Put(&p.Header, &p.AffectedRows, IntEnc, &p.LastInsertId, IntEnc)
+	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Put(&p.Warnings, &p.Status)
-	}else if c.Cap.Has(CLIENT_TRANSACTIONS) {
+	}else if c.HasCap(CLIENT_TRANSACTIONS) {
 		c.Put(&p.Status)
 	}
 
-	if c.Cap.Has(CLIENT_SESSION_TRACK) {
+	if c.HasCap(CLIENT_SESSION_TRACK) {
 		c.Put(&p.Info)
 		if Status(p.Status).Has(SERVER_SESSION_STATE_CHANGED) {
 			c.Put(&p.SessionState)

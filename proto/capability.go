@@ -218,15 +218,3 @@ const (
 	CLIENT_SESSION_TRACK Capability = 0x00800000
 )
 
-func (this Capability) Has(c Capability) bool {
-	return this & c != 0
-}
-
-func (this Capability) Remove(c Capability) Capability {
-	return Capability(this & ^ c)
-}
-
-func (this Capability) Add(c Capability) Capability {
-	return this | c
-}
-
