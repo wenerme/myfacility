@@ -124,8 +124,9 @@ func (p *Handshake)Read(c Reader) {
 		c.Get(&t)
 		p.Capability |= uint32(t) << 16
 
+		cap := Capability(p.Capability)
 		var authPluginDataLen uint8
-		if c.HasCap(CLIENT_PLUGIN_AUTH) {
+		if cap.Has(CLIENT_PLUGIN_AUTH) {
 			c.Get(&authPluginDataLen)
 		}else {
 			c.SkipBytes(1)
@@ -134,14 +135,14 @@ func (p *Handshake)Read(c Reader) {
 		//string[10]     reserved (all [00])
 		c.SkipBytes(10)
 
-		if c.HasCap(CLIENT_SECURE_CONNECTION) {
+		if cap.Has(CLIENT_SECURE_CONNECTION) {
 			// ($len=MAX(13, length of auth-plugin-data - 8))
 			// -1 to strip the last \x00 char
 			c.Get(&p.Challenge2, StrVar, int(math.Max(13, float64(authPluginDataLen)-8)) - 1)
 			c.SkipBytes(1)// waste the \x00 char
 		}
 
-		if c.HasCap(CLIENT_PLUGIN_AUTH) {
+		if cap.Has(CLIENT_PLUGIN_AUTH) {
 			c.Get(&p.AuthPluginName, StrNul)
 		}
 	}
@@ -158,8 +159,8 @@ func (p *Handshake)Write(c Writer) {
 		&p.CharacterSet, &p.Status,
 		uint16(p.Capability >> 16), // upper
 	)
-
-	if c.HasCap(CLIENT_PLUGIN_AUTH) {
+	cap := Capability(p.Capability)
+	if cap.Has(CLIENT_PLUGIN_AUTH) {
 		c.Put(uint8(len(p.Challenge2) + 8 + 1))
 	}else {
 		c.PutZero(1)
@@ -168,12 +169,12 @@ func (p *Handshake)Write(c Writer) {
 	//string[10]     reserved (all [00])
 	c.PutZero(10)
 
-	if c.HasCap(CLIENT_SECURE_CONNECTION) {
+	if cap.Has(CLIENT_SECURE_CONNECTION) {
 		c.Put(p.Challenge2, StrNul)
 		//		c.PutZero(1)
 	}
 
-	if c.HasCap(CLIENT_PLUGIN_AUTH) {
+	if cap.Has(CLIENT_PLUGIN_AUTH) {
 		c.Put(&p.AuthPluginName, StrNul)
 	}
 }
@@ -246,29 +247,29 @@ type HandshakeResponse struct {
 	Attributes     map[string]string
 }
 
-func (p *HandshakeResponse)Read(c *BufReader) {
+func (p *HandshakeResponse)Read(c Reader) {
 	c.Get(&p.Capability, &p.MaxPacketSize, &p.CharacterSet)
 	//  string[23]     reserved (all [0])
 	c.SkipBytes(23)
 	c.Get(&p.Username, StrNul)
-
-	if c.HasCap(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
+	cap := Capability(p.Capability)
+	if cap.Has(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
 		c.Get(&p.AuthResponse)
-	}else if c.HasCap(CLIENT_SECURE_CONNECTION) {
+	}else if cap.Has(CLIENT_SECURE_CONNECTION) {
 		var n uint8
 		c.Get(&n, &p.AuthResponse, StrVar, int(n))
 	}else {
 		c.Get(&p.AuthResponse, StrNul)
 	}
 
-	if c.HasCap(CLIENT_CONNECT_WITH_DB) {
+	if cap.Has(CLIENT_CONNECT_WITH_DB) {
 		c.Get(&p.Database, StrNul)
 	}
-	if c.HasCap(CLIENT_PLUGIN_AUTH) {
+	if cap.Has(CLIENT_PLUGIN_AUTH) {
 		c.Get(&p.AuthPluginName, StrNul)
 	}
 
-	if c.HasCap(CLIENT_CONNECT_ATTRS) {
+	if cap.Has(CLIENT_CONNECT_ATTRS) {
 		var len uint
 		var k, v string
 		c.Get(&len)// length
@@ -280,28 +281,28 @@ func (p *HandshakeResponse)Read(c *BufReader) {
 	}
 }
 
-func (p *HandshakeResponse)Write(c *BufWriter) {
+func (p *HandshakeResponse)Write(c Writer) {
 	c.Put(&p.Capability, &p.MaxPacketSize, &p.CharacterSet)
 	//  string[23]     reserved (all [0])
 	c.PutZero(23)
 	c.Put(&p.Username, StrNul)
-
-	if c.HasCap(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
+	cap := Capability(p.Capability)
+	if cap.Has(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
 		c.Put(p.AuthResponse)
-	}else if c.HasCap(CLIENT_SECURE_CONNECTION) {
+	}else if cap.Has(CLIENT_SECURE_CONNECTION) {
 		c.Put(uint8(len(p.AuthResponse)), p.AuthResponse, StrEof)
 	}else {
 		c.Put(p.AuthResponse, StrNul)
 	}
 
-	if c.HasCap(CLIENT_CONNECT_WITH_DB) {
+	if cap.Has(CLIENT_CONNECT_WITH_DB) {
 		c.Put(&p.Database, StrNul)
 	}
-	if c.HasCap(CLIENT_PLUGIN_AUTH) {
+	if cap.Has(CLIENT_PLUGIN_AUTH) {
 		c.Put(&p.AuthPluginName, StrNul)
 	}
 
-	if c.HasCap(CLIENT_CONNECT_ATTRS) {
+	if cap.Has(CLIENT_CONNECT_ATTRS) {
 		var l uint
 		for k, v := range p.Attributes {
 			kl, vl := uint(len(k)), uint(len(v))

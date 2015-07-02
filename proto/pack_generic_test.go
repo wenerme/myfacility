@@ -14,7 +14,7 @@ func TestEOF(t *testing.T) {
 	p := &EOFPack{}
 	assertCodec(data, p, CLIENT_ALL_FLAGS, func() {
 		assert.True(Status(p.Status).Has(SERVER_STATUS_AUTOCOMMIT))
-	})
+	}, t)
 }
 func TestOK(t *testing.T) {
 	// OK with CLIENT_PROTOCOL_41. 1 affected rows, last-insert-id was 2, AUTOCOMMIT, 3 warnings. No further info.

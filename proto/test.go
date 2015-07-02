@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"testing"
-	"io/ioutil"
+	"runtime/debug"
 )
 
 type TestFlag uint
@@ -30,10 +30,11 @@ func assertCodec(data []byte, p Pack, c Capability, args...interface{}) {
 	fine := false
 	var t *testing.T
 	flag := TestFlag(0)
-	var write []byte
+	var write, payload []byte
 
-	proto := NewBuffer(bytes.NewBufferString(""), nil)
-	proto.buf.Write(data)
+	buf := bytes.NewBufferString("")
+	proto := NewBuffer(buf, nil)
+	buf.Write(data)
 
 	for _, arg := range args {
 		if f, ok := arg.(TestFlag); ok {
@@ -46,20 +47,16 @@ func assertCodec(data []byte, p Pack, c Capability, args...interface{}) {
 	if flag.Has(DumpOrigin) {
 		fmt.Println("Origin data:\n", hex.Dump(data))
 	}
-
 	proto.SetCap(c)
-
-	//	if flag.Has(DumpPayload) {
-	//		fmt.Printf("Payload :\n%s\n", hex.Dump(payload))
-	//	}
 
 	defer func() {
 		if !fine {
 			fmt.Println("Assert Codec Failed")
 			fmt.Printf("Origin data:\n%s\n", hex.Dump(data))
 			fmt.Printf("Write data:\n%s\n", hex.Dump(write))
-			//			fmt.Printf("Payload :\n%s\n", hex.Dump(payload))
+			fmt.Printf("Payload :\n%s\n", hex.Dump(payload))
 			fmt.Printf("Packet:\n%#v\n", p)
+			fmt.Println(string(debug.Stack()))
 			if t != nil {
 				t.Fatal(recover())
 			}
@@ -69,6 +66,10 @@ func assertCodec(data []byte, p Pack, c Capability, args...interface{}) {
 	_, err := proto.RecvPacket()
 	if err != nil {panic(err)}
 	proto.ReadPacket(p)
+	payload = proto.buf.Bytes()
+	if flag.Has(DumpPayload) {
+		fmt.Printf("Payload :\n%s\n", payload)
+	}
 
 	if flag.Has(DumpPacket) {
 		fmt.Printf("Packet:\n%#v\n", p)
@@ -83,7 +84,7 @@ func assertCodec(data []byte, p Pack, c Capability, args...interface{}) {
 	proto.WritePacket(p)
 	_, err = proto.SendPacket()
 	if err != nil {panic(err)}
-	write, _ = ioutil.ReadAll(proto.con)
+	write = buf.Bytes()
 	if flag.Has(DumpWrite) {
 		fmt.Printf("Write data:\n%s\n", hex.Dump(write))
 	}
