@@ -1,4 +1,5 @@
 package proto
+
 import "github.com/syndtr/goleveldb/leveldb/errors"
 
 //
@@ -21,22 +22,23 @@ import "github.com/syndtr/goleveldb/leveldb/errors"
 type EOFPack struct {
 	Header   uint8
 	Warnings uint16
-	Status Status
+	Status   Status
 }
-func (p *EOFPack)Read(c Reader) {
+
+func (p *EOFPack) Read(c Reader) {
 	c.Get(&p.Header)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Get(&p.Warnings, &p.Status)
 	}
 }
-func (p *EOFPack)Write(c Writer) {
+func (p *EOFPack) Write(c Writer) {
 	c.Put(&p.Header)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Put(&p.Warnings, &p.Status)
 	}
 }
 
-// 
+//
 // This packet signals that an error occurred. It contains a SQL state value if CLIENT_PROTOCOL_41 is enabled.
 // <pre>
 // <b>Payload</b>
@@ -53,7 +55,7 @@ func (p *EOFPack)Write(c Writer) {
 // 74 61 62 6c 65 73 20 75    73 65 64                      tables used
 // </pre>
 // <a href=http://dev.mysql.com/doc/internals/en/packet-ERR_Packet.html>ERR_Packet</a>
-// 
+//
 type ERRPack struct {
 	Header         uint8
 	ErrorCode      uint16
@@ -61,24 +63,26 @@ type ERRPack struct {
 	SQLState       string
 	ErrorMessage   string
 }
-func (p *ERRPack)Read(c Reader) {
+
+func (p *ERRPack) Read(c Reader) {
 	c.Get(&p.Header, &p.ErrorCode)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Get(&p.SQLStateMarker, StrVar, 1, &p.SQLState, StrVar, 5)
 	}
 	c.Get(&p.ErrorMessage, StrEof)
 }
-func (p *ERRPack)Write(c Writer) {
+func (p *ERRPack) Write(c Writer) {
 	c.Put(&p.Header, &p.ErrorCode)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Put(&p.SQLStateMarker, StrVar, 1, &p.SQLState, StrVar, 5)
 	}
 	c.Put(&p.ErrorMessage, StrEof)
 }
-func (p ERRPack)Error() string {
+func (p ERRPack) Error() string {
 	return string(p.ErrorMessage)
 }
-// 
+
+//
 // An OK packet is sent from the server to the client to signal successful completion of a command.
 // <p/>
 // If CLIENT_PROTOCOL_41 is set, the packet contains a warning count.
@@ -112,17 +116,17 @@ type OKPack struct {
 	Header       uint8
 	AffectedRows uint64
 	LastInsertId uint64
-	Status Status
+	Status       Status
 	Warnings     uint16
 	Info         string
-	SessionState string
+	SessionState SessionState
 }
 
-func (p *OKPack)Read(c Reader) {
+func (p *OKPack) Read(c Reader) {
 	c.Get(&p.Header, &p.AffectedRows, IntEnc, &p.LastInsertId, IntEnc)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Get(&p.Warnings, &p.Status)
-	}else if c.HasCap(CLIENT_TRANSACTIONS) {
+	} else if c.HasCap(CLIENT_TRANSACTIONS) {
 		c.Get(&p.Status)
 	}
 
@@ -131,15 +135,15 @@ func (p *OKPack)Read(c Reader) {
 		if Status(p.Status).Has(SERVER_SESSION_STATE_CHANGED) {
 			c.Get(&p.SessionState)
 		}
-	}else {
+	} else {
 		c.Get(&p.Info, StrEof)
 	}
 }
-func (p *OKPack)Write(c Writer) {
+func (p *OKPack) Write(c Writer) {
 	c.Put(&p.Header, &p.AffectedRows, IntEnc, &p.LastInsertId, IntEnc)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Put(&p.Warnings, &p.Status)
-	}else if c.HasCap(CLIENT_TRANSACTIONS) {
+	} else if c.HasCap(CLIENT_TRANSACTIONS) {
 		c.Put(&p.Status)
 	}
 
@@ -148,11 +152,13 @@ func (p *OKPack)Write(c Writer) {
 		if Status(p.Status).Has(SERVER_SESSION_STATE_CHANGED) {
 			c.Put(&p.SessionState)
 		}
-	}else {
+	} else {
 		c.Put(&p.Info, StrEof)
 	}
 }
+
 var ErrNotStatePack = errors.New("Not OK,ERR of EOF packet")
+
 func ReadStatePack(proto Proto) (p Pack, err error) {
 	b, err := proto.PeekByte()
 	if err != nil {

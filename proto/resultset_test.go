@@ -1,12 +1,11 @@
 package proto
-import (
-	"testing"
-	"github.com/stretchr/testify/assert"
-	"bytes"
-	"fmt"
-	"github.com/davecgh/go-spew/spew"
-)
 
+import (
+	"bytes"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
 
 func TestQueryResponse(t *testing.T) {
 	assert := assert.New(t)
@@ -24,7 +23,7 @@ func TestQueryResponse(t *testing.T) {
 	b.SetCap(CLIENT_BASIC_FLAGS)
 	rs := &QueryResponse{}
 	rs.Read(b)
-	fmt.Printf("%v\n", rs)
+	spew.Dump(rs)
 }
 func TestQueryResponseLong(t *testing.T) {
 	assert := assert.New(t)

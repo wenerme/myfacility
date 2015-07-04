@@ -1,7 +1,8 @@
 package proto
+
 import (
 	"math"
-//	"golang.org/x/tools/cmd/stringer"
+	//	"golang.org/x/tools/cmd/stringer"
 )
 
 //
@@ -34,12 +35,12 @@ type Packet struct {
 	Payload    []byte
 }
 
-func (p *Packet)Read(c Reader) {
+func (p *Packet) Read(c Reader) {
 	var len uint
 	c.Get(&len, &p.SequenceId, &p.Payload, StrVar, int(len))
 }
 
-func (p *Packet)Write(c Writer) {
+func (p *Packet) Write(c Writer) {
 	c.Put(uint(len(p.Payload)), p.SequenceId, p.Payload, StrEof)
 }
 
@@ -107,7 +108,8 @@ type Handshake struct {
 	Challenge2      string
 	AuthPluginName  string
 }
-func (p *Handshake)Read(c Reader) {
+
+func (p *Handshake) Read(c Reader) {
 	c.Get(
 		&p.ProtocolVersion,
 		&p.ServerVersion, StrNul,
@@ -128,7 +130,7 @@ func (p *Handshake)Read(c Reader) {
 		var authPluginDataLen uint8
 		if cap.Has(CLIENT_PLUGIN_AUTH) {
 			c.Get(&authPluginDataLen)
-		}else {
+		} else {
 			c.SkipBytes(1)
 		}
 
@@ -138,8 +140,8 @@ func (p *Handshake)Read(c Reader) {
 		if cap.Has(CLIENT_SECURE_CONNECTION) {
 			// ($len=MAX(13, length of auth-plugin-data - 8))
 			// -1 to strip the last \x00 char
-			c.Get(&p.Challenge2, StrVar, int(math.Max(13, float64(authPluginDataLen)-8)) - 1)
-			c.SkipBytes(1)// waste the \x00 char
+			c.Get(&p.Challenge2, StrVar, int(math.Max(13, float64(authPluginDataLen)-8))-1)
+			c.SkipBytes(1) // waste the \x00 char
 		}
 
 		if cap.Has(CLIENT_PLUGIN_AUTH) {
@@ -148,21 +150,21 @@ func (p *Handshake)Read(c Reader) {
 	}
 }
 
-func (p *Handshake)Write(c Writer) {
+func (p *Handshake) Write(c Writer) {
 	c.Put(
 		&p.ProtocolVersion,
 		&p.ServerVersion, StrNul,
 		&p.ConnectionId,
 		p.Challenge1, StrVar, 8, // len = 8
-		uint8(0), // filter
+		uint8(0),             // filter
 		uint16(p.Capability), // lower
 		&p.CharacterSet, &p.Status,
-		uint16(p.Capability >> 16), // upper
+		uint16(p.Capability>>16), // upper
 	)
 	cap := Capability(p.Capability)
 	if cap.Has(CLIENT_PLUGIN_AUTH) {
 		c.Put(uint8(len(p.Challenge2) + 8 + 1))
-	}else {
+	} else {
 		c.PutZero(1)
 	}
 
@@ -178,6 +180,7 @@ func (p *Handshake)Write(c Writer) {
 		c.Put(&p.AuthPluginName, StrNul)
 	}
 }
+
 //
 // Handshake Response Packet sent by 4.1+ clients supporting CLIENT_PROTOCOL_41 capability, if the server announced it in its Initial Handshake Packet. Otherwise (talking to an old server) the Protocol::HandshakeResponse320 packet has to be used.
 // <pre>
@@ -236,9 +239,9 @@ func (p *Handshake)Write(c Writer) {
 // <a href="http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse41">HandshakeResponse41</a>
 //
 type HandshakeResponse struct {
-	Capability     uint32
-	MaxPacketSize  uint32
-	CharacterSet   uint8
+	Capability    uint32
+	MaxPacketSize uint32
+	CharacterSet  uint8
 	//string[23]     reserved (all [0])
 	Username       string
 	AuthResponse   []byte
@@ -247,7 +250,7 @@ type HandshakeResponse struct {
 	Attributes     map[string]string
 }
 
-func (p *HandshakeResponse)Read(c Reader) {
+func (p *HandshakeResponse) Read(c Reader) {
 	c.Get(&p.Capability, &p.MaxPacketSize, &p.CharacterSet)
 	//  string[23]     reserved (all [0])
 	c.SkipBytes(23)
@@ -255,11 +258,11 @@ func (p *HandshakeResponse)Read(c Reader) {
 	cap := Capability(p.Capability)
 	if cap.Has(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
 		c.Get(&p.AuthResponse)
-	}else if cap.Has(CLIENT_SECURE_CONNECTION) {
+	} else if cap.Has(CLIENT_SECURE_CONNECTION) {
 		var n uint8
 		c.Get(&n)
 		c.Get(&p.AuthResponse, StrVar, int(n))
-	}else {
+	} else {
 		c.Get(&p.AuthResponse, StrNul)
 	}
 
@@ -273,16 +276,16 @@ func (p *HandshakeResponse)Read(c Reader) {
 	if cap.Has(CLIENT_CONNECT_ATTRS) {
 		var len uint
 		var k, v string
-		c.Get(&len)// length
+		c.Get(&len) // length
 		p.Attributes = make(map[string]string)
 		for c.More() {
 			c.Get(&k, &v)
-			p.Attributes[k]=v
+			p.Attributes[k] = v
 		}
 	}
 }
 
-func (p *HandshakeResponse)Write(c Writer) {
+func (p *HandshakeResponse) Write(c Writer) {
 	c.Put(&p.Capability, &p.MaxPacketSize, &p.CharacterSet)
 	//  string[23]     reserved (all [0])
 	c.PutZero(23)
@@ -290,9 +293,9 @@ func (p *HandshakeResponse)Write(c Writer) {
 	cap := Capability(p.Capability)
 	if cap.Has(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
 		c.Put(p.AuthResponse)
-	}else if cap.Has(CLIENT_SECURE_CONNECTION) {
+	} else if cap.Has(CLIENT_SECURE_CONNECTION) {
 		c.Put(uint8(len(p.AuthResponse)), p.AuthResponse, StrEof)
-	}else {
+	} else {
 		c.Put(p.AuthResponse, StrNul)
 	}
 
@@ -307,7 +310,7 @@ func (p *HandshakeResponse)Write(c Writer) {
 		var l uint
 		for k, v := range p.Attributes {
 			kl, vl := uint(len(k)), uint(len(v))
-			l += kl + vl + bytesOfIntVar(uint64(kl))+ bytesOfIntVar(uint64(vl))
+			l += kl + vl + bytesOfIntVar(uint64(kl)) + bytesOfIntVar(uint64(vl))
 		}
 		c.Put(uint(l))
 		for k, v := range p.Attributes {
@@ -318,8 +321,11 @@ func (p *HandshakeResponse)Write(c Writer) {
 
 func bytesOfIntVar(i uint64) uint {
 	switch {
-	case i<251:return 1
-	case i<0xffff:return 3
-	default: return 8
+	case i < 251:
+		return 1
+	case i < 0xffff:
+		return 3
+	default:
+		return 8
 	}
 }

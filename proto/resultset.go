@@ -26,14 +26,15 @@ type ColumnDefinition struct {
 	Name          string
 	OrgName       string
 	FixedLength   uint
-	CharacterSet  uint16
+	CharacterSet  CharacterSet
 	ColumnLength  uint32
-	Type          uint8
+	Type          ColumnType
 	Flags         uint16
 	Decimals      uint8
 	DefaultValues string
 }
-func (p *ColumnDefinition)Read(c Reader) {
+
+func (p *ColumnDefinition) Read(c Reader) {
 	c.Get(&p.Catalog,
 		&p.Schema,
 		&p.Table,
@@ -46,13 +47,13 @@ func (p *ColumnDefinition)Read(c Reader) {
 		&p.Type,
 		&p.Flags,
 		&p.Decimals)
-	c.SkipBytes(2)// filter
+	c.SkipBytes(2) // filter
 
 	//	if c.Com ==  COM_FIELD_LIST {
 	//		c.Get(&p.DefaultValues)
 	//	}
 }
-func (p *ColumnDefinition)Write(c Writer) {
+func (p *ColumnDefinition) Write(c Writer) {
 	c.Put(&p.Catalog,
 		&p.Schema,
 		&p.Table,
@@ -65,33 +66,38 @@ func (p *ColumnDefinition)Write(c Writer) {
 		&p.Type,
 		&p.Flags,
 		&p.Decimals)
-	c.PutZero(2)// filter
+	c.PutZero(2) // filter
 
 	//	if c.Com ==  COM_FIELD_LIST {
 	//		c.Put(&p.DefaultValues)
 	//	}
 }
 
-
 // https://dev.mysql.com/doc/internals/en/com-query-response.html
 type QueryResponse struct {
 	Fields []ColumnDefinition
 	Rows   [][]*string
+
+	EOF *EOFPack
+	OK  *OKPack
+	ERR *ERRPack
 }
 type Cell struct {
 	Value string
 	Col   *ColumnDefinition
 }
 
-func (p *QueryResponse)Read(proto Proto) {
+func (p *QueryResponse) Read(proto Proto) {
 	var n uint
 	proto.MustRecvPacket()
 	proto.Get(&n)
 	p.Fields = make([]ColumnDefinition, n)
-	for i := uint(0); i < n; i ++ {
+	for i := uint(0); i < n; i++ {
 		c := ColumnDefinition{}
 		_, err := proto.RecvReadPacket(&c)
-		if err != nil {panic(err)}
+		if err != nil {
+			panic(err)
+		}
 		p.Fields[i] = c
 	}
 	if !proto.HasCap(CLIENT_DEPRECATE_EOF) {
@@ -103,28 +109,36 @@ func (p *QueryResponse)Read(proto Proto) {
 	for {
 		proto.MustRecvPacket()
 		b, err := proto.PeekByte()
-		if err != nil {panic(err)}
-		switch Command(b){
+		if err != nil {
+			panic(err)
+		}
+		switch Command(b) {
 		case EOF:
-			if proto.HasCap(CLIENT_DEPRECATE_EOF) {break}
+			if proto.HasCap(CLIENT_DEPRECATE_EOF) {
+				break
+			}
 			eof := &EOFPack{}
 			eof.Read(proto)
+			p.EOF = eof
 			return
 		case OK:
-			eof := &OKPack{}
-			eof.Read(proto)
-
+			ok := &OKPack{}
+			ok.Read(proto)
+			p.OK = ok
 			return
 		case ERR:
-			eof := &ERRPack{}
-			eof.Read(proto)
+			err := &ERRPack{}
+			err.Read(proto)
+			p.ERR = err
 			return
 		}
 
 		row := make([]*string, n)
-		for i := uint(0); i < n; i ++ {
+		for i := uint(0); i < n; i++ {
 			b, err := proto.PeekByte()
-			if err != nil {panic(err)}
+			if err != nil {
+				panic(err)
+			}
 			if b == 0xfb {
 				proto.SkipBytes(1)
 				continue
@@ -137,7 +151,7 @@ func (p *QueryResponse)Read(proto Proto) {
 	}
 
 }
-func (p *QueryResponse)Write(c Proto) {
+func (p *QueryResponse) Write(c Proto) {
 	n := uint(len(p.Fields))
 	c.Put(n)
 	c.MustSendPacket()
