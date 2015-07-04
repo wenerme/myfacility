@@ -2,6 +2,8 @@ package proto
 
 import (
 	"bytes"
+	"encoding/hex"
+	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -78,5 +80,11 @@ func TestQueryResponseLong(t *testing.T) {
 	b.SetCap(CLIENT_BASIC_FLAGS)
 	rs := &QueryResponse{}
 	rs.Read(b)
+	assert.EqualValues(0, buf.Len())
+	b.SetSeq(1)
+	rs.Write(b)
+	b.Flush()
 	spew.Dump(rs)
+	fmt.Printf("%s\n%s\n", hex.Dump(DecodeDump(dump)), hex.Dump(buf.Bytes()))
+	assert.EqualValues(DecodeDump(dump), buf.Bytes())
 }

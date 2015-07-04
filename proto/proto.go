@@ -24,9 +24,11 @@ type (
 		ReadPacket(Pack)
 		WritePacket(Pack)
 		RecvPacket() (int, error)
+		// Send buf as a packet
+		// Will increase the sequence id
 		SendPacket() (int, error)
-		MustRecvPacket() (int)
-		MustSendPacket() (int)
+		MustRecvPacket() int
+		MustSendPacket() int
 		RecvReadPacket(Pack) (int, error)
 		WriteSendPacket(Pack) (int, error)
 

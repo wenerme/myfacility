@@ -1,5 +1,7 @@
 package proto
 
+import "github.com/davecgh/go-spew/spew"
+
 // https://dev.mysql.com/doc/internals/en/com-query-response.html#packet-Protocol::ColumnDefinition41
 type ColumnDefinition struct {
 	Catalog       string
@@ -70,64 +72,65 @@ type Cell struct {
 	Col   *ColumnDefinition
 }
 
-func (p *QueryResponse) Read(proto Proto) {
+func (p *QueryResponse) Read(c Proto) {
 	var n uint
-	proto.MustRecvPacket()
-	proto.Get(&n)
+	c.MustRecvPacket()
+	c.Get(&n)
 	p.Fields = make([]ColumnDefinition, n)
 	for i := uint(0); i < n; i++ {
-		c := ColumnDefinition{}
-		_, err := proto.RecvReadPacket(&c)
+		col := ColumnDefinition{}
+		_, err := c.RecvReadPacket(&col)
 		if err != nil {
 			panic(err)
 		}
-		p.Fields[i] = c
+		p.Fields[i] = col
 	}
-	if !proto.HasCap(CLIENT_DEPRECATE_EOF) {
+	if !c.HasCap(CLIENT_DEPRECATE_EOF) {
 		eof := &EOFPack{}
-		proto.MustRecvPacket()
-		eof.Read(proto)
+		c.MustRecvPacket()
+		eof.Read(c)
+		spew.Dump(eof)
 	}
 
 	for {
-		proto.MustRecvPacket()
-		b, err := proto.PeekByte()
+		c.MustRecvPacket()
+		b, err := c.PeekByte()
 		if err != nil {
 			panic(err)
 		}
 		switch PackType(b) {
 		case EOF:
-			if proto.HasCap(CLIENT_DEPRECATE_EOF) {
+			if c.HasCap(CLIENT_DEPRECATE_EOF) {
 				break
 			}
 			eof := &EOFPack{}
-			eof.Read(proto)
+			eof.Read(c)
 			p.EOF = eof
 			return
 		case OK:
 			ok := &OKPack{}
-			ok.Read(proto)
+			ok.Read(c)
 			p.OK = ok
 			return
 		case ERR:
 			err := &ERRPack{}
-			err.Read(proto)
+			err.Read(c)
 			p.ERR = err
 			return
 		}
 
 		row := make([]*string, n)
 		for i := uint(0); i < n; i++ {
-			b, err := proto.PeekByte()
+			b, err := c.PeekByte()
 			if err != nil {
 				panic(err)
 			}
 			if b == 0xfb {
-				proto.SkipBytes(1)
+				c.SkipBytes(1)
 				continue
 			}
 			var s string
-			proto.Get(&s)
+			c.Get(&s)
 			row[i] = &s
 		}
 		p.Rows = append(p.Rows, row)
@@ -142,5 +145,29 @@ func (p *QueryResponse) Write(c Proto) {
 		col.Write(c)
 		c.MustSendPacket()
 	}
-
+	if !c.HasCap(CLIENT_DEPRECATE_EOF) {
+		p.EOF.Write(c)
+		c.MustSendPacket()
+	}
+	for _, row := range p.Rows {
+		for i := uint(0); i < n; i++ {
+			s := row[i]
+			if s == nil {
+				c.Put(uint8(0xfb))
+			} else {
+				c.Put(s)
+			}
+		}
+		c.MustSendPacket()
+	}
+	if !c.HasCap(CLIENT_DEPRECATE_EOF) {
+		p.EOF.Write(c)
+		c.MustSendPacket()
+	} else if p.OK != nil {
+		p.OK.Write(c)
+		c.MustSendPacket()
+	} else if p.ERR != nil {
+		p.ERR.Write(c)
+		c.MustSendPacket()
+	}
 }
