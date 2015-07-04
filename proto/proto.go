@@ -1,55 +1,36 @@
 package proto
-import (
-	"bufio"
-	"encoding/binary"
-	"io"
-)
 
 type (
 	Pack interface {
 		Read(Reader)
 		Write(Writer)
 	}
-)
 
-func ReadPacketTo(r *bufio.Reader, w io.Writer) (seq uint8, size int, err error) {
-	var l uint32
-	err = binary.Read(r, binary.LittleEndian, &l)
-	if err != nil {return }
-	seq = uint8(l >> 24)
-	l = l << 8 >> 8
-	size = int(l)
-	var buf []byte = make([]byte, 16)
-	for i := 0; i < size; {
-		n, e := r.Read(buf)
-		if n < 16 {
-			w.Write(buf[0:n])
-			i+=n
-		}else {
-			_, err = w.Write(buf)
-			if e != nil {return }
-			i += 16
-		}
+	Proto interface {
+		/* read */
+		Get(...interface{})
+		GetType(interface{}, ProtoType) (int, error)
+		SkipBytes(int)
+		More() bool
 
-		if e == io.EOF { return }
-		if e != nil {err = e; return }
+		/* write */
+		Put(...interface{})
+		PutType(interface{}, ProtoType) (int, error)
+		PutZero(int)
 
+		/* pack */
+		ReadPacket(Pack)
+		WritePacket(Pack)
+		RecvPacket() (int, error)
+		SendPacket() (int, error)
+		RecvReadPacket(Pack) (int, error)
+		WriteSendPacket(Pack) (int, error)
 
+		/* ctx */
+		SetSeq(uint8)
+		Seq(uint8)
+		HasCap(Capability) bool
+		Cap() Capability
+		SetCap(Capability)
 	}
-	return
-}
-
-func ReadCompressedPacket(r *bufio.Reader, w *bufio.Writer) (seq uint8, err error) {
-
-	return
-}
-
-
-func WritePacket(seq uint8, r *bufio.Reader, w *bufio.Writer) (n int, err error) {
-
-	return
-}
-func WriteCompressedPacket(seq uint8, r *bufio.Reader, w *bufio.Writer) (n int, err error) {
-
-	return
-}
+)

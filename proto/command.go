@@ -2,16 +2,13 @@ package proto
 
 type CommandType uint8
 const (
-//
 // internal server command
 // <p/>
 // Payload
 // 1              [00] COM_SLEEP
 // Returns
 // ERR_Packet
-//
-	COM_SLEEP CommandType = 0
-//
+	COM_SLEEP CommandType = iota
 // Tells the server that the client wants to close the connection
 // <p/>
 // response: either a connection close or a OK_Packet
@@ -23,9 +20,7 @@ const (
 // <p/>
 // Example
 // 01 00 00 00 01
-//
-	COM_QUIT CommandType = 1
-//
+	COM_QUIT
 // change the default schema of the connection
 // <p/>
 // Returns
@@ -41,9 +36,7 @@ const (
 // <p/>
 // Example
 // 05 00 00 00 02 74 65 73    74                         .....test
-//
-	COM_INIT_DB CommandType = 2
-//
+	COM_INIT_DB
 // A COM_QUERY is used to send the server a text-based query that is executed immediately.
 // <p/>
 // The server replies to a COM_QUERY packet with a COM_QUERY Response.
@@ -68,9 +61,7 @@ const (
 // 21 00 00 00 03 73 65 6c    65 63 74 20 40 40 76 65    !....select @@ve
 // 72 73 69 6f 6e 5f 63 6f    6d 6d 65 6e 74 20 6c 69    rsion_comment li
 // 6d 69 74 20 31                                        mit 1
-//
-	COM_QUERY CommandType = 3
-//
+	COM_QUERY
 // get the column definitions of a table
 // <p/>
 // Payload
@@ -94,9 +85,7 @@ const (
 // 65 6c 64 6c 69 73 74 09    66 69 65 6c 64 6c 69 73    eldlist.fieldlis
 // 74 02 69 64 02 69 64 0c    3f 00 0b 00 00 00 03 00    t.id.id.?.......
 // 00 00 00 00 fb 05 00 00    02 fe 00 00 02 00          ..............
-//
-	COM_FIELD_LIST CommandType = 4
-//
+	COM_FIELD_LIST
 // create a schema
 // <p/>
 // Payload
@@ -107,9 +96,7 @@ const (
 // <p/>
 // Example
 // 05 00 00 00 05 74 65 73    74                         .....test
-//
-	COM_CREATE_DB CommandType = 5
-//
+	COM_CREATE_DB
 // drop a schema
 // <p/>
 // Payload
@@ -120,9 +107,7 @@ const (
 // <p/>
 // Example
 // 05 00 00 00 06 74 65 73    74                         .....test
-//
-	COM_DROP_DB CommandType = 6
-//
+	COM_DROP_DB
 // A low-level version of several FLUSH ... and RESET ... statements.
 // <p/>
 // COM_REFRESH:
@@ -138,9 +123,7 @@ const (
 // <p/>
 // Returns
 // OK_Packet or ERR_Packet
-//
-	COM_REFRESH CommandType = 7
-//
+	COM_REFRESH
 // COM_SHUTDOWN is used to shut down the MySQL server.
 // <p/>
 // The SHUTDOWN privilege is required for this operation.
@@ -163,9 +146,7 @@ const (
 // <p/>
 // Note
 // Even if several shutdown types are defined, right now only one is in use: SHUTDOWN_WAIT_ALL_BUFFERS
-//
-	COM_SHUTDOWN CommandType = 8
-//
+	COM_SHUTDOWN
 // Get a human readable string of internal statistics.
 // <p/>
 // Returns
@@ -173,9 +154,7 @@ const (
 // <p/>
 // Payload
 // 1              [09] COM_STATISTICS
-//
-	COM_STATISTICS CommandType = 9
-//
+	COM_STATISTICS
 // get a list of active threads
 // <p/>
 // Returns
@@ -183,18 +162,14 @@ const (
 // <p/>
 // Payload
 // 1              [0a] COM_PROCCESS_INFO
-//
-	COM_PROCESS_INFO CommandType = 10
-//
+	COM_PROCESS_INFO
 // an internal command in the server
 // <p/>
 // Payload
 // 1              [0b] COM_CONNECT
 // Returns
 // ERR_Packet
-//
-	COM_CONNECT CommandType = 11
-//
+	COM_CONNECT
 // Same as KILL &lt;id>.
 // <p/>
 // ask the server to terminate a connection
@@ -205,9 +180,7 @@ const (
 // Payload
 // 1              [0c] COM_PROCCESS_KILL
 // 4              connection id
-//
-	COM_PROCESS_KILL CommandType = 12
-//
+	COM_PROCESS_KILL
 // COM_DEBUG triggers a dump on internal debug info to stdout of the mysql-server.
 // <p/>
 // The SUPER privilege is required for this operation.
@@ -219,9 +192,7 @@ const (
 // <p/>
 // Payload
 // 1              [0d] COM_DEBUG
-//
-	COM_DEBUG CommandType = 13
-//
+	COM_DEBUG
 // check if the server is alive
 // <p/>
 // Returns
@@ -229,27 +200,21 @@ const (
 // <p/>
 // Payload
 // 1              [0e] COM_PING
-//
-	COM_PING CommandType = 14
-//
+	COM_PING
 // an internal command in the server
 // <p/>
 // Payload
 // 1              [0f] COM_TIME
 // Returns
 // ERR_Packet
-//
-	COM_TIME CommandType = 15
-//
+	COM_TIME
 // an internal command in the server
 // <p/>
 // Payload
 // 1              [10] COM_DELAYED_INSERT
 // Returns
 // ERR_Packet
-//
-	COM_DELAYED_INSERT CommandType = 16
-//
+	COM_DELAYED_INSERT
 // COM_CHANGE_USER changes the user of the current connection and reset the connection state.
 // <p/>
 // user variables
@@ -311,13 +276,11 @@ const (
 // parse_com_change_user_packet()
 // <p/>
 // character set is the connection character set as defined in Protocol::CharacterSet and is also the encoding of user and schema-name.
-//
-	COM_CHANGE_USER CommandType = 17
-	COM_BINLOG_DUMP CommandType = 18
-	COM_TABLE_DUMP CommandType = 19
-	COM_CONNECT_OUT CommandType = 20
-	COM_REGISTER_SLAVE CommandType = 21
-//
+	COM_CHANGE_USER
+	COM_BINLOG_DUMP
+	COM_TABLE_DUMP
+	COM_CONNECT_OUT
+	COM_REGISTER_SLAVE
 // create a prepared statement
 // <p/>
 // Fields
@@ -336,9 +299,7 @@ const (
 // <p/>
 // Note
 // As LOAD DATA isn't supported by COM_STMT_PREPARE yet, no Protocol::LOCAL_INFILE_Request is expected here. Compare this to COM_QUERY_Response.
-//
-	COM_STMT_PREPARE CommandType = 22
-//
+	COM_STMT_PREPARE
 // COM_STMT_EXECUTE asks the server to execute a prepared statement as identified by stmt-id.
 // <pre>
 //  * It sends the values for the placeholders of the prepared statement
@@ -377,9 +338,7 @@ const (
 // </pre>
 // NULL-bitmap is like NULL-bitmap for the Binary Protocol Resultset Row just that it has a bit-offset of 0.
 //  * @see <a href=http://dev.mysql.com/doc/internals/en/com-stmt-execute.html>com-stmt-execute</a>
-//
-	COM_STMT_EXECUTE CommandType = 23
-//
+	COM_STMT_EXECUTE
 // COM_STMT_SEND_LONG_DATA sends the data for a column. Repeating to send it, appends the data to the parameter.
 // <p/>
 // No response is sent back to the client.
@@ -395,9 +354,7 @@ const (
 // 2              param-id
 // n              data
 // COM_STMT_SEND_LONG_DATA has to be sent before COM_STMT_EXECUTE.
-//
-	COM_STMT_SEND_LONG_DATA CommandType = 24
-//
+	COM_STMT_SEND_LONG_DATA
 // COM_STMT_CLOSE deallocates a prepared statement
 // <pre>
 // No response is sent back to the client.
@@ -412,9 +369,7 @@ const (
 // 05 00 00 00 19 01 00 00    00                         .........
 // </pre>
 //  * @see <a href=http://dev.mysql.com/doc/internals/en/com-stmt-close.html>com-stmt-close</a>
-//
-	COM_STMT_CLOSE CommandType = 25
-//
+	COM_STMT_CLOSE
 // COM_STMT_RESET resets the data of a prepared statement which was accumulated with COM_STMT_SEND_LONG_DATA commands and closes the cursor if it was opened with COM_STMT_EXECUTE
 // <pre>
 // The server will send a OK_Packet if the statement could be reset, a ERR_Packet if not.
@@ -429,9 +384,7 @@ const (
 // 05 00 00 00 1a 01 00 00    00                         .........
 // </pre>
 //  * @see <a href=http://dev.mysql.com/doc/internals/en/com-stmt-reset.html>com-stmt-reset</a>
-//
-	COM_STMT_RESET CommandType = 26
-//
+	COM_STMT_RESET
 // Allows to enable and disable: CLIENT_MULTI_STATEMENTS
 // <pre>
 // for the current connection. The option operation is one of:
@@ -447,9 +400,7 @@ const (
 // 2              option operation
 // </pre>
 //  * @see <a href=http://dev.mysql.com/doc/internals/en/com-set-option.html>com-set-option</a>
-//
-	COM_SET_OPTION CommandType = 27
-//
+	COM_SET_OPTION
 // Fetch rows from a existing resultset after a COM_STMT_EXECUTE.
 // <pre>
 // Payload
@@ -459,19 +410,15 @@ const (
 // Returns
 // a COM_STMT_FETCH response( a multi-resultset or a ERR_Packet )
 // </pre>
-//
-	COM_STMT_FETCH CommandType = 28
-//
+	COM_STMT_FETCH
 // an internal command in the server
 // <p/>
 // Payload
 // 1              [1d] COM_DAEMON
 // Returns
 // ERR_Packet
-//
-	COM_DAEMON CommandType = 29
-	COM_BINLOG_DUMP_GTID CommandType = 30
-//
+	COM_DAEMON
+	COM_BINLOG_DUMP_GTID
 // Resets the session state; more lightweight than COM_CHANGE_USER because it does not close and reopen the connection, and does not re-authenticate
 // <p/>
 // Payload
@@ -480,6 +427,11 @@ const (
 // a ERR_Packet
 // <p/>
 // a OK_Packet
-//
-	COM_RESET_CONNECTION CommandType = 31
+	COM_RESET_CONNECTION
 )
+
+type ComPack struct {
+	Type CommandType
+	data []byte
+	buf  *Buffer
+}

@@ -238,7 +238,7 @@ func (p *Handshake)Write(c Writer) {
 type HandshakeResponse struct {
 	Capability     uint32
 	MaxPacketSize  uint32
-	CharacterSet uint8
+	CharacterSet   uint8
 	//string[23]     reserved (all [0])
 	Username       string
 	AuthResponse   []byte
@@ -257,7 +257,8 @@ func (p *HandshakeResponse)Read(c Reader) {
 		c.Get(&p.AuthResponse)
 	}else if cap.Has(CLIENT_SECURE_CONNECTION) {
 		var n uint8
-		c.Get(&n, &p.AuthResponse, StrVar, int(n))
+		c.Get(&n)
+		c.Get(&p.AuthResponse, StrVar, int(n))
 	}else {
 		c.Get(&p.AuthResponse, StrNul)
 	}

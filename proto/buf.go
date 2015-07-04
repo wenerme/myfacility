@@ -8,25 +8,6 @@ import (
 	"github.com/op/go-logging"
 )
 
-type Proto interface {
-	Get(...interface{})
-	GetType(interface{}, ProtoType) (int, error)
-	SkipBytes(int)
-	More() bool
-
-	Put(...interface{})
-	PutType(interface{}, ProtoType) (int, error)
-	PutZero(int)
-
-	ReadPacket(Pack)
-	WritePacket(Pack)
-	RecvPacket() (int, error)
-	SendPacket() (int, error)
-
-	SetSeq(uint8)
-	Seq(uint8)
-}
-
 type Buffer struct {
 	*BufReader
 	*BufWriter
@@ -62,6 +43,20 @@ func (r *Buffer)HasCap(cap Capability) bool {
 	return r.cap.Has(cap)
 }
 
+func (b *Buffer)RecvReadPacket(p Pack) (n int, err error) {
+	n, err = b.RecvPacket()
+	if err != nil {return}
+
+	p.Read(b)
+	return
+}
+func (b *Buffer)WriteSendPacket(p Pack) (n int, err error) {
+	p.Write(b)
+	b.BufWriter.Flush()
+
+	n, err = b.SendPacket()
+	return
+}
 func (b *Buffer)ReadPacket(p Pack) {
 	p.Read(b)
 }

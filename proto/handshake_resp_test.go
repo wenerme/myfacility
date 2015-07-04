@@ -14,7 +14,7 @@ func TestHandshakeResponse41Basic(t *testing.T) {
 		0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x00,
 	}
 	_=data
-	c := CLIENT_BASIC_FLAGS ^ CLIENT_CONNECT_ATTRS
+	c := CLIENT_BASIC_FLAGS ^ CLIENT_CONNECT_ATTRS |CLIENT_SECURE_CONNECTION
 	p := &HandshakeResponse{}
 	assert := assert.New(t)
 	_, _, _ = c, p, assert
@@ -22,7 +22,7 @@ func TestHandshakeResponse41Basic(t *testing.T) {
 		assert.EqualValues("pam", p.Username)
 		assert.EqualValues("test", p.Database)
 		assert.EqualValues("mysql_native_password", p.AuthPluginName)
-	})
+	},DumpOrigin,DumpPacket)
 }
 
 func TestHandshakeResponse41Send(t *testing.T) {

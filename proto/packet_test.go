@@ -2,7 +2,6 @@ package proto
 import (
 	"testing"
 	"bytes"
-	"bufio"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -14,16 +13,16 @@ func TestPacketCoder(t *testing.T) {
 	// payload: 0x01
 
 	data := []byte{0x01, 00, 00, 0x2, 0x01}
-	pack := bytes.NewBuffer(make([]byte, 0))
-	r := &BufReader{Reader:bufio.NewReader(pack)}
-	seq, size, err := ReadPacketTo(bufio.NewReader(bytes.NewReader(data)), pack)
-	assert.NoError(err)
-	assert.EqualValues(1, size)
-	assert.EqualValues(2, seq)
 
-	assert.True(r.More())
+	buf := NewBuffer(bytes.NewBuffer(data), nil)
+	n, err := buf.RecvPacket()
+	assert.NoError(err)
+	assert.EqualValues(1, n)
+	assert.EqualValues(2, buf.Seq())
+
+	assert.True(buf.More())
 	var com uint8
-	r.Get(&com)
+	buf.Get(&com)
 	assert.EqualValues(1, com)
-	assert.False(r.More())
+	assert.False(buf.More())
 }
