@@ -38,5 +38,7 @@ type (
 		HasCap(Capability) bool
 		Cap() Capability
 		SetCap(Capability)
+		Com() Command
+		SetCom(Command)
 	}
 )

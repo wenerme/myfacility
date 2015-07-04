@@ -43,6 +43,28 @@ func (this Capability) Add(c Capability) Capability {
 	return this | c
 }
 
+func (this Capability) Dump() []Capability {
+	caps := make([]Capability, 0)
+	for i := uint32(0); i < 32; i++ {
+		c := Capability(1 << i)
+		if this.Has(c) {
+			caps = append(caps, c)
+		}
+	}
+	return caps
+}
+
+func (this Status) Dump() []Status {
+	caps := make([]Status, 0)
+	for i := uint16(0); i < 16; i++ {
+		c := Status(uint16(1 << i))
+		if this.Has(c) {
+			caps = append(caps, c)
+		}
+	}
+	return caps
+}
+
 const (
 	// one or more system variables changed. See also: session_track_system_variables
 	SESSION_TRACK_SYSTEM_VARIABLES SessionState = iota

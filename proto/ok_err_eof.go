@@ -97,7 +97,7 @@ func (p *OKPack) Write(c Writer) {
 
 var ErrNotStatePack = errors.New("Not OK,ERR of EOF packet")
 
-func ReadStatePack(proto Proto) (p Pack, err error) {
+func ReadErrOk(proto Proto) (p Pack, err error) {
 	b, err := proto.PeekByte()
 	if err != nil {
 		return nil, err
@@ -105,6 +105,22 @@ func ReadStatePack(proto Proto) (p Pack, err error) {
 	switch b {
 	case 0:
 		p = &OKPack{}
+	case 0xFF:
+		p = &ERRPack{}
+	case 0xFE:
+		p = &EOFPack{}
+	default:
+		return nil, ErrNotStatePack
+	}
+	proto.ReadPacket(p)
+	return
+}
+func ReadErrEof(proto Proto) (p Pack, err error) {
+	b, err := proto.PeekByte()
+	if err != nil {
+		return nil, err
+	}
+	switch b {
 	case 0xFF:
 		p = &ERRPack{}
 	case 0xFE:

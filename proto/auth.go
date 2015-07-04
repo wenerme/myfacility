@@ -30,7 +30,7 @@ type Handshake struct {
 	ServerVersion   string
 	ConnectionId    uint32
 	Challenge1      string
-	Capability      uint32
+	Capability      Capability
 	CharacterSet    uint8
 	Status          uint16
 	Challenge2      string
@@ -48,11 +48,11 @@ func (p *Handshake) Read(c Reader) {
 	c.SkipBytes(1)
 	var t uint16
 	c.Get(&t)
-	p.Capability = uint32(t)
+	p.Capability = Capability(t)
 	if c.More() {
 		c.Get(&p.CharacterSet, &p.Status)
 		c.Get(&t)
-		p.Capability |= uint32(t) << 16
+		p.Capability = p.Capability | Capability(t)<<16
 
 		cap := Capability(p.Capability)
 		var authPluginDataLen uint8
@@ -116,9 +116,9 @@ func (p *Handshake) Write(c Writer) {
 */
 // http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse41
 type HandshakeResponse struct {
-	Capability    uint32
+	Capability    Capability
 	MaxPacketSize uint32
-	CharacterSet  uint8
+	CharacterSet  CharacterSet //CharacterSet here is int1
 	//string[23]     reserved (all [0])
 	Username       string
 	AuthResponse   []byte
@@ -128,7 +128,7 @@ type HandshakeResponse struct {
 }
 
 func (p *HandshakeResponse) Read(c Reader) {
-	c.Get(&p.Capability, &p.MaxPacketSize, &p.CharacterSet)
+	c.Get(&p.Capability, &p.MaxPacketSize, &p.CharacterSet, Int1)
 	//  string[23]     reserved (all [0])
 	c.SkipBytes(23)
 	c.Get(&p.Username, StrNul)
@@ -163,7 +163,7 @@ func (p *HandshakeResponse) Read(c Reader) {
 }
 
 func (p *HandshakeResponse) Write(c Writer) {
-	c.Put(&p.Capability, &p.MaxPacketSize, &p.CharacterSet)
+	c.Put(&p.Capability, &p.MaxPacketSize, &p.CharacterSet, Int1)
 	//  string[23]     reserved (all [0])
 	c.PutZero(23)
 	c.Put(&p.Username, StrNul)

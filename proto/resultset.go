@@ -1,7 +1,5 @@
 package proto
 
-import "github.com/davecgh/go-spew/spew"
-
 // https://dev.mysql.com/doc/internals/en/com-query-response.html#packet-Protocol::ColumnDefinition41
 type ColumnDefinition struct {
 	Catalog       string
@@ -16,7 +14,7 @@ type ColumnDefinition struct {
 	Type          ColumnType
 	Flags         uint16
 	Decimals      uint8
-	DefaultValues string
+	DefaultValues *string
 }
 
 func (p *ColumnDefinition) Read(c Reader) {
@@ -34,9 +32,18 @@ func (p *ColumnDefinition) Read(c Reader) {
 		&p.Decimals)
 	c.SkipBytes(2) // filter
 
-	//	if c.Com ==  COM_FIELD_LIST {
-	//		c.Get(&p.DefaultValues)
-	//	}
+	if c.Com() == COM_FIELD_LIST {
+		var n uint
+		c.Get(&n)
+		if n == 0xfb {
+			p.DefaultValues = nil
+		} else {
+			s := ""
+			p.DefaultValues = &s
+			c.Get(&s, StrVar, int(n))
+		}
+
+	}
 }
 func (p *ColumnDefinition) Write(c Writer) {
 	c.Put(&p.Catalog,
@@ -53,9 +60,14 @@ func (p *ColumnDefinition) Write(c Writer) {
 		&p.Decimals)
 	c.PutZero(2) // filter
 
-	//	if c.Com ==  COM_FIELD_LIST {
-	//		c.Put(&p.DefaultValues)
-	//	}
+	if c.Com() == COM_FIELD_LIST {
+		if p.DefaultValues == nil {
+			c.Put(uint8(0xfb))
+		} else {
+			c.Put(p.DefaultValues)
+		}
+
+	}
 }
 
 // https://dev.mysql.com/doc/internals/en/com-query-response.html
@@ -73,8 +85,26 @@ type Cell struct {
 }
 
 func (p *QueryResponse) Read(c Proto) {
-	var n uint
+	p.Rows = nil
+	p.Fields = nil
+	p.ERR = nil
+	p.OK = nil
 	c.MustRecvPacket()
+	b, err := c.PeekByte()
+	if err != nil {
+		panic(err)
+	}
+	if PackType(b) == ERR {
+		p.ERR = &ERRPack{}
+		p.ERR.Read(c)
+		return
+	} else if PackType(b) == OK {
+		p.OK = &OKPack{}
+		p.OK.Read(c)
+		return
+	}
+
+	var n uint
 	c.Get(&n)
 	p.Fields = make([]ColumnDefinition, n)
 	for i := uint(0); i < n; i++ {
@@ -89,7 +119,6 @@ func (p *QueryResponse) Read(c Proto) {
 		eof := &EOFPack{}
 		c.MustRecvPacket()
 		eof.Read(c)
-		spew.Dump(eof)
 	}
 
 	for {
@@ -98,6 +127,9 @@ func (p *QueryResponse) Read(c Proto) {
 		if err != nil {
 			panic(err)
 		}
+		//		bytes, err := c.Peek(4)
+		//		log.Info("Peek byte %v %v %v %v \n%v", b, bytes, err, c.Cap().Dump(), string(debug.Stack()))
+		//		log.Info("Dump\n %s", hex.Dump(c.(*Buffer).buf.Bytes()))
 		switch PackType(b) {
 		case EOF:
 			if c.HasCap(CLIENT_DEPRECATE_EOF) {
@@ -108,6 +140,9 @@ func (p *QueryResponse) Read(c Proto) {
 			p.EOF = eof
 			return
 		case OK:
+			if !c.HasCap(CLIENT_DEPRECATE_EOF) {
+				break
+			}
 			ok := &OKPack{}
 			ok.Read(c)
 			p.OK = ok
@@ -138,6 +173,17 @@ func (p *QueryResponse) Read(c Proto) {
 
 }
 func (p *QueryResponse) Write(c Proto) {
+	if p.ERR != nil {
+		p.ERR.Write(c)
+		c.MustSendPacket()
+		return
+	}
+	if p.Fields == nil && p.OK != nil {
+		p.OK.Write(c)
+		c.MustSendPacket()
+		return
+	}
+
 	n := uint(len(p.Fields))
 	c.Put(n)
 	c.MustSendPacket()

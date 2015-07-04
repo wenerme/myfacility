@@ -15,6 +15,7 @@ type Buffer struct {
 	buf *bytes.Buffer
 	con io.ReadWriter
 	cap Capability
+	com Command
 	seq uint8
 }
 
@@ -104,7 +105,7 @@ func (b *Buffer) RecvPacket() (n int, err error) {
 	}
 	b.buf.Write(data)
 	if log.IsEnabledFor(logging.DEBUG) {
-		log.Debug("Recv packet#%d (%d)\n%s", b.seq, n, hex.Dump(data))
+		log.Debug("Recv packet#%d (%d)\n%s", b.seq, n, hex.Dump(b.buf.Bytes()))
 	}
 	return
 }
@@ -113,7 +114,6 @@ func (b *Buffer) SendPacket() (n int, err error) {
 	var l uint32
 	l = uint32(len(b.buf.Bytes()))
 	l = l | (uint32(b.seq) << 24)
-	b.seq++
 	err = binary.Write(b.con, binary.LittleEndian, l)
 	if err != nil {
 		return
@@ -123,6 +123,14 @@ func (b *Buffer) SendPacket() (n int, err error) {
 	if log.IsEnabledFor(logging.DEBUG) {
 		log.Debug("Send packet#%d (%d)\n%s", b.seq, n, hex.Dump(b.buf.Bytes()))
 	}
+	b.seq++
 	b.buf.Reset()
 	return
+}
+
+func (r *Buffer) SetCom(com Command) {
+	r.com = com
+}
+func (r *Buffer) Com() Command {
+	return r.com
 }

@@ -1,6 +1,5 @@
 package proto
 
-
 //
 // A COM_QUERY is used to send the server a text-based query that is executed immediately.
 // <p/>
@@ -35,9 +34,10 @@ type ComPack struct {
 	data []byte
 	buf  *Buffer
 }
-func (p *ComPack)Read(c Reader) {
-	c.Get((*uint8)(&p.Type), &p.data, StrEof)
+
+func (p *ComPack) Read(c Reader) {
+	c.Get(&p.Type, &p.data, StrEof)
 }
-func (p *ComPack)Write(c Writer) {
-	c.Put((*uint8)(&p.Type), &p.data, StrEof)
+func (p *ComPack) Write(c Writer) {
+	c.Put(&p.Type, &p.data, StrEof)
 }

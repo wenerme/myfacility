@@ -1,7 +1,8 @@
 package proto
+
 import (
-	"testing"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestHandshakeResponse41Basic(t *testing.T) {
@@ -13,8 +14,8 @@ func TestHandshakeResponse41Basic(t *testing.T) {
 		0x74, 0x00, 0x6d, 0x79, 0x73, 0x71, 0x6c, 0x5f, 0x6e, 0x61, 0x74, 0x69, 0x76, 0x65, 0x5f, 0x70,
 		0x61, 0x73, 0x73, 0x77, 0x6f, 0x72, 0x64, 0x00,
 	}
-	_=data
-	c := CLIENT_BASIC_FLAGS ^ CLIENT_CONNECT_ATTRS |CLIENT_SECURE_CONNECTION
+	_ = data
+	c := CLIENT_BASIC_FLAGS ^ CLIENT_CONNECT_ATTRS | CLIENT_SECURE_CONNECTION
 	p := &HandshakeResponse{}
 	assert := assert.New(t)
 	_, _, _ = c, p, assert
@@ -22,7 +23,7 @@ func TestHandshakeResponse41Basic(t *testing.T) {
 		assert.EqualValues("pam", p.Username)
 		assert.EqualValues("test", p.Database)
 		assert.EqualValues("mysql_native_password", p.AuthPluginName)
-	},DumpOrigin,DumpPacket)
+	}, t)
 }
 
 func TestHandshakeResponse41Send(t *testing.T) {
@@ -31,10 +32,10 @@ func TestHandshakeResponse41Send(t *testing.T) {
 		0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
 		0x0, 0x0, 0x72, 0x6f, 0x6f, 0x74, 0x0, 0x0, 0x74, 0x65, 0x73, 0x74, 0x0, 0x0, 0x0,
 	}
-	c := CLIENT_PROTOCOL_41|CLIENT_PLUGIN_AUTH| CLIENT_SECURE_CONNECTION| CLIENT_CONNECT_WITH_DB
+	c := CLIENT_PROTOCOL_41 | CLIENT_PLUGIN_AUTH | CLIENT_SECURE_CONNECTION | CLIENT_CONNECT_WITH_DB
 	p := &HandshakeResponse{}
 	assert := assert.New(t)
-	_=assert
+	_ = assert
 	assertCodec(data, p, c, func() {
 
 	}, SkipEqual)
@@ -54,18 +55,18 @@ func TestHandshakeResponse41General(t *testing.T) {
 		0x61, 0x74, 0x66, 0x6f, 0x72, 0x6d, 0x06, 0x78, 0x38, 0x36, 0x5f, 0x36, 0x34, 0x0c, 0x70, 0x72,
 		0x6f, 0x67, 0x72, 0x61, 0x6d, 0x5f, 0x6e, 0x61, 0x6d, 0x65, 0x05, 0x6d, 0x79, 0x73, 0x71, 0x6c,
 	}
-	_=data
-	c := CLIENT_PROTOCOL_41|CLIENT_PLUGIN_AUTH| CLIENT_SECURE_CONNECTION| CLIENT_CONNECT_WITH_DB|CLIENT_CONNECT_ATTRS
+	_ = data
+	c := CLIENT_PROTOCOL_41 | CLIENT_PLUGIN_AUTH | CLIENT_SECURE_CONNECTION | CLIENT_CONNECT_WITH_DB | CLIENT_CONNECT_ATTRS
 	p := &HandshakeResponse{}
 	assert := assert.New(t)
 	_, _, _ = c, p, assert
 	attr := map[string]string{
-		"_pid":"30112",
-		"_client_version":"10.0.17",
-		"_platform":"x86_64",
-		"_os":"osx10.10",
-		"_client_name":"libmysql",
-		"program_name":"mysql",
+		"_pid":            "30112",
+		"_client_version": "10.0.17",
+		"_platform":       "x86_64",
+		"_os":             "osx10.10",
+		"_client_name":    "libmysql",
+		"program_name":    "mysql",
 	}
 	assertCodec(data, p, c, func() {
 		assert.EqualValues(33, p.CharacterSet)
@@ -74,5 +75,5 @@ func TestHandshakeResponse41General(t *testing.T) {
 		assert.EqualValues("test", p.Database)
 		assert.EqualValues("mysql_native_password", p.AuthPluginName)
 		assert.EqualValues(attr, p.Attributes)
-	}, SkipEqual, )
+	}, SkipEqual, t)
 }

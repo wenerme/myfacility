@@ -18,6 +18,8 @@ type Reader interface {
 	HasCap(Capability) bool
 	Peek(int) ([]byte, error)
 	PeekByte() (byte, error)
+	Com() Command
+	SetCom(Command)
 }
 
 // A writer used to write packet
@@ -26,16 +28,20 @@ type Writer interface {
 	PutType(interface{}, ProtoType) (int, error)
 	PutZero(int)
 	HasCap(Capability) bool
+	Com() Command
+	SetCom(Command)
 }
 
 type BufReader struct {
 	*bufio.Reader
 	cap Capability
+	com Command
 }
 
 type BufWriter struct {
 	*bufio.Writer
 	cap Capability
+	com Command
 }
 
 // General protocol types
@@ -56,6 +62,21 @@ const (
 	StrEnc // string<lenenc>	Protocol::LengthEncodedString
 	StrVar // string<var/fix>	    Protocol::VariableLengthString:
 )
+
+func (r *BufReader) SetCom(com Command) {
+	r.com = com
+}
+func (r *BufReader) Com() Command {
+	return r.com
+}
+
+func (r *BufWriter) SetCom(com Command) {
+	r.com = com
+}
+
+func (r *BufWriter) Com() Command {
+	return r.com
+}
 
 func (r *BufWriter) SetCap(cap Capability) {
 	r.cap = cap
@@ -233,7 +254,7 @@ TYPE_SWITCH:
 			err = e
 			break
 		}
-		if i < 251 {
+		if i <= 251 {
 			n = 1
 			val.SetUint(uint64(i))
 			break
@@ -445,10 +466,10 @@ TYPE_SWITCH:
 		}
 		n++
 		switch {
-		case i < 0xffff:
+		case i <= 0xffff:
 			err = w.WriteByte(252)
 			t = Int2
-		case i < 0xffffff:
+		case i <= 0xffffff:
 			err = w.WriteByte(253)
 			t = Int3
 		default:
