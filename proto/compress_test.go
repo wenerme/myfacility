@@ -39,7 +39,14 @@ c0 c0 62 94 48 32 00 ea    67 05 eb 07 00 8d f9 1c    ..b.H2..g.......
 
 	r := NewCompressedReader(buf)
 	b, err := ioutil.ReadAll(r)
-	fmt.Println(hex.Dump(b))
+	assert.NoError(err)
+	assert.EqualValues(DecodeDump(before), b)
+
+	// write and read again
+	w := NewCompressedWriter(buf)
+	_, err =w.Write(DecodeDump(before))
+	assert.NoError(err)
+	b, err = ioutil.ReadAll(r)
 	assert.NoError(err)
 	assert.EqualValues(DecodeDump(before), b)
 }
@@ -87,9 +94,48 @@ c4 cd 52 02 00 0c d1 0a    6c                         ..R.....l
 	fmt.Println(hex.Dump(buf.Bytes()))
 	assert.NoError(err)
 	assert.EqualValues(DecodeDump(before), b)
+
+
+	// write and read again
+	w := NewCompressedWriter(buf)
+	_, err =w.Write(DecodeDump(before))
+	assert.NoError(err)
+	b, err = ioutil.ReadAll(r)
+	assert.NoError(err)
+	assert.EqualValues(DecodeDump(before), b)
 }
 
-func TestCompress(t *testing.T) {
+func TestUnCompressed(t *testing.T) {
+	assert := assert.New(t)
+	// SELECT repeat("a", 50)
+	before := `
+09 00 00 00 03 53 45 4c 45 43 54 20 31                ....SELECT 1
+`
+	after := `
+0d 00 00 00 00 00 00 09    00 00 00 03 53 45 4c 45    ............SELE
+43 54 20 31                                           CT 1
+`
+	_, _ = before, after
+
+	buf := bytes.NewBufferString("")
+	buf.Write(DecodeDump(after))
+
+	r := NewCompressedReader(buf)
+	b, err := ioutil.ReadAll(r)
+	assert.NoError(err)
+	assert.EqualValues(DecodeDump(before), b)
+
+
+	// write and read again
+	w := NewCompressedWriter(buf)
+	_, err =w.Write(DecodeDump(before))
+	assert.NoError(err)
+	b, err = ioutil.ReadAll(r)
+	assert.NoError(err)
+	assert.EqualValues(DecodeDump(before), b)
+}
+
+func testCompress(t *testing.T) {
 	assert := assert.New(t)
 	before := `
 2e 00 00 00 03 73 65 6c    65 63 74 20 22 30 31 32    .....select "012
