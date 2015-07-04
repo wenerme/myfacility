@@ -21,7 +21,7 @@ import "github.com/syndtr/goleveldb/leveldb/errors"
 type EOFPack struct {
 	Header   uint8
 	Warnings uint16
-	Status   uint16
+	Status Status
 }
 func (p *EOFPack)Read(c Reader) {
 	c.Get(&p.Header)
@@ -107,13 +107,12 @@ func (p ERRPack)Error() string {
 //  * 07 00 00 02 00 00 00 02    00 00 00
 // ...........
 // </pre>
-//  * @see <a href=http://dev.mysql.com/doc/internals/en/packet-OK_Packet.html>OK_Packet</a>
-// 
+// http://dev.mysql.com/doc/internals/en/packet-OK_Packet.html
 type OKPack struct {
 	Header       uint8
 	AffectedRows uint64
 	LastInsertId uint64
-	Status       uint16
+	Status Status
 	Warnings     uint16
 	Info         string
 	SessionState string

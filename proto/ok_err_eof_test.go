@@ -27,7 +27,7 @@ func TestOK(t *testing.T) {
 		assert.EqualValues(3, p.Warnings)
 		assert.EqualValues(2, p.LastInsertId)
 		assert.True(Status(p.Status).Has(SERVER_STATUS_AUTOCOMMIT))
-	})
+	}, t)
 }
 func TestERR(t *testing.T) {
 	// 17 00 00 01 ff 48 04 23    48 59 30 30 30 4e 6f 20       .....H.#HY000No
@@ -42,5 +42,5 @@ func TestERR(t *testing.T) {
 		assert.EqualValues("#", p.SQLStateMarker)
 		assert.EqualValues("HY000", p.SQLState)
 		assert.EqualValues("No tables used", p.ErrorMessage)
-	})
+	}, t)
 }

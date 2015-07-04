@@ -83,6 +83,13 @@ func (r *BufReader)Get(values... interface{}) {
 	for i := 0; i < n; i ++ {
 		v := values[i]
 		t := UndType
+
+		if v == nil { panic(fmt.Sprintf("Can not get %T(nil)", v)) }
+		val := reflect.ValueOf(v)
+		if val.CanAddr() {
+			panic(fmt.Sprintf("Must use a addressable value instead of %T(%v)", v, v))
+		}
+
 		if i < n-1 {
 			if ty, ok := values[i+1].(ProtoType); ok {
 				t = ty
@@ -90,9 +97,15 @@ func (r *BufReader)Get(values... interface{}) {
 			}
 		}
 
-		if v == nil { panic(fmt.Sprintf("Can not get %T(nil)", v)) }
-		if reflect.ValueOf(v).CanAddr() {
-			panic(fmt.Sprintf("Must use a addressable value instead of %T(%v)", v, v))
+		if t == UndType {
+			// For type alias
+			switch val.Elem().Kind(){
+			case reflect.Uint:t=IntEnc
+			case reflect.Uint8:t=Int1
+			case reflect.Uint16:t=Int2
+			case reflect.Uint32:t=Int4
+			case reflect.Uint64:t=Int8
+			}
 		}
 
 		if t == UndType {
@@ -260,9 +273,22 @@ func (w *BufWriter)Put(values...interface{}) {
 		}
 
 		if v == nil { panic(fmt.Sprintf("Can not put %T(nil)", v)) }
-		va := reflect.ValueOf(v)
-		if va.Kind() == reflect.Ptr {
-			v = va.Elem().Interface()
+		val := reflect.ValueOf(v)
+		if val.Kind() == reflect.Ptr {
+			v = val.Elem().Interface()
+		}
+
+		if t == UndType {
+			kind := val.Kind()
+			if kind == reflect.Ptr { kind = val.Elem().Kind() }
+			// For type alias
+			switch kind{
+			case reflect.Uint:t=IntEnc
+			case reflect.Uint8:t=Int1
+			case reflect.Uint16:t=Int2
+			case reflect.Uint32:t=Int4
+			case reflect.Uint64:t=Int8
+			}
 		}
 
 		if t == UndType {

@@ -1,13 +1,14 @@
 package proto
 
 //go:vet
-//go:generate stringer -output=strings.go -type=Capability,Status,Command
+//go:generate stringer -output=strings.go -type=Capability,Status,Command,SessionState,ProtoType
 
 // Packet less than 50 will not compress
 const MIN_COMPRESS_LENGTH = 50
 
 type Command uint8
-
+// http://dev.mysql.com/doc/internals/en/packet-OK_Packet.html#cs-sect-packet-ok-sessioninfo
+type SessionState uint16
 // http://dev.mysql.com/doc/internals/en/capability-flags.html
 type Capability uint32
 
@@ -40,6 +41,15 @@ func (this Capability) Add(c Capability) Capability {
 }
 
 const (
+// one or more system variables changed. See also: session_track_system_variables
+	SESSION_TRACK_SYSTEM_VARIABLES SessionState = iota
+// schema changed. See also: session_track_schema
+	SESSION_TRACK_SCHEMA
+// "track state change" changed. See also: session_track_state_change
+	SESSION_TRACK_STATE_CHANGE
+)
+
+const (
 // Is raised when a multi-statement transaction
 // has been started, either explicitly, by means
 // of BEGIN or COMMIT AND CHAIN, or
@@ -47,33 +57,33 @@ const (
 // statement, when autocommit=off.
 	SERVER_STATUS_IN_TRANS Status = 1
 // Server in auto_commit mode
-	SERVER_STATUS_AUTOCOMMIT = 2
+	SERVER_STATUS_AUTOCOMMIT Status = 2
 // Multi query - next query exists
-	SERVER_MORE_RESULTS_EXISTS = 8
-	SERVER_QUERY_NO_GOOD_INDEX_USED = 16
-	SERVER_QUERY_NO_INDEX_USED = 32
+	SERVER_MORE_RESULTS_EXISTS Status = 8
+	SERVER_QUERY_NO_GOOD_INDEX_USED Status = 16
+	SERVER_QUERY_NO_INDEX_USED Status = 32
 //
 // The server was able to fulfill the clients request and opened a
 // read-only non-scrollable cursor for a query. This flag comes
 // in reply to COM_STMT_EXECUTE and COM_STMT_FETCH commands.
-	SERVER_STATUS_CURSOR_EXISTS = 64
+	SERVER_STATUS_CURSOR_EXISTS Status = 64
 //
 // This flag is sent when a read-only cursor is exhausted, in reply to
 // COM_STMT_FETCH command.
-	SERVER_STATUS_LAST_ROW_SENT = 128
+	SERVER_STATUS_LAST_ROW_SENT Status = 128
 //  A database was dropped
-	SERVER_STATUS_DB_DROPPED = 256
-	SERVER_STATUS_NO_BACKSLASH_ESCAPES = 512
+	SERVER_STATUS_DB_DROPPED Status = 256
+	SERVER_STATUS_NO_BACKSLASH_ESCAPES Status = 512
 //
 // Sent to the client if after a prepared statement reprepare
 // we discovered that the new statement returns a different
 // number of result set columns.
-	SERVER_STATUS_METADATA_CHANGED = 1024
-	SERVER_QUERY_WAS_SLOW = 2048
+	SERVER_STATUS_METADATA_CHANGED Status = 1024
+	SERVER_QUERY_WAS_SLOW Status = 2048
 
 //
 // To mark ResultSet containing output parameter values.
-	SERVER_PS_OUT_PARAMS = 4096
+	SERVER_PS_OUT_PARAMS Status = 4096
 
 //
 // Set at the same time as SERVER_STATUS_IN_TRANS if the started
@@ -81,10 +91,10 @@ const (
 // when the transaction commits or aborts. Since this flag is sent
 // to clients in OK and EOF packets, the flag indicates the
 // transaction status at the end of command execution.
-	SERVER_STATUS_IN_TRANS_READONLY = 8192
+	SERVER_STATUS_IN_TRANS_READONLY Status = 8192
 
 // connection state information has changed
-	SERVER_SESSION_STATE_CHANGED = 0x4000
+	SERVER_SESSION_STATE_CHANGED Status = 0x4000
 //
 // Server status flags that must be cleared when starting
 // execution of a new SQL statement.
