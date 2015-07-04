@@ -78,3 +78,72 @@ type QueryResponse struct {
 	Fields []ColumnDefinition
 	Rows   [][]*string
 }
+type Cell struct {
+	Value string
+	Col   *ColumnDefinition
+}
+
+func (p *QueryResponse)Read(proto Proto) {
+	var n uint
+	proto.MustRecvPacket()
+	proto.Get(&n)
+	p.Fields = make([]ColumnDefinition, n)
+	for i := uint(0); i < n; i ++ {
+		c := ColumnDefinition{}
+		_, err := proto.RecvReadPacket(&c)
+		if err != nil {panic(err)}
+		p.Fields[i] = c
+	}
+	if !proto.HasCap(CLIENT_DEPRECATE_EOF) {
+		eof := &EOFPack{}
+		proto.MustRecvPacket()
+		eof.Read(proto)
+	}
+
+	for {
+		proto.MustRecvPacket()
+		b, err := proto.PeekByte()
+		if err != nil {panic(err)}
+		switch Command(b){
+		case EOF:
+			if proto.HasCap(CLIENT_DEPRECATE_EOF) {break}
+			eof := &EOFPack{}
+			eof.Read(proto)
+			return
+		case OK:
+			eof := &OKPack{}
+			eof.Read(proto)
+
+			return
+		case ERR:
+			eof := &ERRPack{}
+			eof.Read(proto)
+			return
+		}
+
+		row := make([]*string, n)
+		for i := uint(0); i < n; i ++ {
+			b, err := proto.PeekByte()
+			if err != nil {panic(err)}
+			if b == 0xfb {
+				proto.SkipBytes(1)
+				continue
+			}
+			var s string
+			proto.Get(&s)
+			row[i] = &s
+		}
+		p.Rows = append(p.Rows, row)
+	}
+
+}
+func (p *QueryResponse)Write(c Proto) {
+	n := uint(len(p.Fields))
+	c.Put(n)
+	c.MustSendPacket()
+	for _, col := range p.Fields {
+		col.Write(c)
+		c.MustSendPacket()
+	}
+
+}

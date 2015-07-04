@@ -11,6 +11,8 @@ type (
 		Get(...interface{})
 		GetType(interface{}, ProtoType) (int, error)
 		SkipBytes(int)
+		Peek(int) ([]byte, error)
+		PeekByte() (byte, error)
 		More() bool
 
 		/* write */
@@ -23,12 +25,14 @@ type (
 		WritePacket(Pack)
 		RecvPacket() (int, error)
 		SendPacket() (int, error)
+		MustRecvPacket() (int)
+		MustSendPacket() (int)
 		RecvReadPacket(Pack) (int, error)
 		WriteSendPacket(Pack) (int, error)
 
 		/* ctx */
 		SetSeq(uint8)
-		Seq(uint8)
+		Seq() uint8
 		HasCap(Capability) bool
 		Cap() Capability
 		SetCap(Capability)

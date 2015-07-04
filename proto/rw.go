@@ -14,6 +14,8 @@ type Reader interface {
 	SkipBytes(int)
 	More() bool
 	HasCap(Capability) bool
+	Peek(int) ([]byte, error)
+	PeekByte() (byte, error)
 }
 type Writer interface {
 	Put(...interface{})
@@ -63,6 +65,12 @@ func (r *BufReader)More() bool {
 	}
 }
 
+func (r *BufReader)PeekByte() (b byte, err error) {
+	var tmp []byte
+	tmp, err = r.Peek(1)
+	if err == nil {b = tmp[0]}
+	return
+}
 func (r *BufReader)SkipBytes(n int) {
 	for i := 0; i < n; i ++ {
 		_, err := r.ReadByte()
