@@ -1,13 +1,15 @@
 package proto
+
 import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"testing"
 	"runtime/debug"
+	"testing"
 )
 
 type TestFlag uint
+
 const (
 	SkipEqual TestFlag = 1 << iota
 	DumpOrigin
@@ -15,8 +17,9 @@ const (
 	DumpPayload
 	DumpPacket
 )
+
 func (this TestFlag) Has(c TestFlag) bool {
-	return this & c != 0
+	return this&c != 0
 }
 
 func (this TestFlag) Remove(c TestFlag) TestFlag {
@@ -26,7 +29,7 @@ func (this TestFlag) Remove(c TestFlag) TestFlag {
 func (this TestFlag) Add(c TestFlag) TestFlag {
 	return this | c
 }
-func assertCodec(data []byte, p Pack, c Capability, args...interface{}) {
+func assertCodec(data []byte, p Pack, c Capability, args ...interface{}) {
 	fine := false
 	var t *testing.T
 	flag := TestFlag(0)
@@ -39,7 +42,7 @@ func assertCodec(data []byte, p Pack, c Capability, args...interface{}) {
 	for _, arg := range args {
 		if f, ok := arg.(TestFlag); ok {
 			flag = flag.Add(f)
-		}else if f, ok := arg.(*testing.T); ok {
+		} else if f, ok := arg.(*testing.T); ok {
 			t = f
 		}
 	}
@@ -64,7 +67,9 @@ func assertCodec(data []byte, p Pack, c Capability, args...interface{}) {
 	}()
 
 	_, err := proto.RecvPacket()
-	if err != nil {panic(err)}
+	if err != nil {
+		panic(err)
+	}
 	proto.ReadPacket(p)
 	payload = proto.buf.Bytes()
 	if flag.Has(DumpPayload) {
@@ -83,7 +88,9 @@ func assertCodec(data []byte, p Pack, c Capability, args...interface{}) {
 
 	proto.WritePacket(p)
 	_, err = proto.SendPacket()
-	if err != nil {panic(err)}
+	if err != nil {
+		panic(err)
+	}
 	write = buf.Bytes()
 	if flag.Has(DumpWrite) {
 		fmt.Printf("Write data:\n%s\n", hex.Dump(write))

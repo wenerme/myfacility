@@ -6,17 +6,18 @@ package proto
 // Packet less than 50 will not compress
 const MIN_COMPRESS_LENGTH = 50
 
-type Command uint8
+type (
+	// Packet command type
+	Command uint8
+	// http://dev.mysql.com/doc/internals/en/packet-OK_Packet.html#cs-sect-packet-ok-sessioninfo
+	SessionState uint16
 
-// http://dev.mysql.com/doc/internals/en/packet-OK_Packet.html#cs-sect-packet-ok-sessioninfo
-type SessionState uint16
-
-// http://dev.mysql.com/doc/internals/en/capability-flags.html
-type Capability uint32
-type CharacterSet uint16
-
-// http://dev.mysql.com/doc/internals/en/status-flags.html#packet-Protocol::StatusFlags
-type Status uint16
+	// http://dev.mysql.com/doc/internals/en/capability-flags.html
+	Capability   uint32
+	CharacterSet uint16
+	// http://dev.mysql.com/doc/internals/en/status-flags.html#packet-Protocol::StatusFlags
+	Status uint16
+)
 
 func (this Status) Has(c Status) bool {
 	return this&c != 0
