@@ -130,8 +130,7 @@ type HandshakeResponse struct {
 func (p *HandshakeResponse) Read(c Reader) {
 	c.Get(&p.Capability, &p.MaxPacketSize, &p.CharacterSet, Int1)
 	//  string[23]     reserved (all [0])
-	c.SkipBytes(23)
-	c.Get(&p.Username, StrNul)
+	c.Get(23, IgnoreByte, &p.Username, StrNul)
 	cap := Capability(p.Capability)
 	if cap.Has(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
 		c.Get(&p.AuthResponse)
@@ -165,8 +164,7 @@ func (p *HandshakeResponse) Read(c Reader) {
 func (p *HandshakeResponse) Write(c Writer) {
 	c.Put(&p.Capability, &p.MaxPacketSize, &p.CharacterSet, Int1)
 	//  string[23]     reserved (all [0])
-	c.PutZero(23)
-	c.Put(&p.Username, StrNul)
+	c.Put(23, IgnoreByte, &p.Username, StrNul)
 	cap := Capability(p.Capability)
 	if cap.Has(CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA) {
 		c.Put(p.AuthResponse)

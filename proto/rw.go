@@ -9,6 +9,11 @@ import (
 	"reflect"
 )
 
+/*
+Reader Writer use reflect to get parameter type, map go type to protocol type
+Also can specify protocol type explicit
+*/
+
 // A reader used to read packet
 type Reader interface {
 	Get(...interface{})
@@ -61,6 +66,9 @@ const (
 	StrNul // string<NUL>	    Protocol::NulTerminatedString
 	StrEnc // string<lenenc>	Protocol::LengthEncodedString
 	StrVar // string<var/fix>	    Protocol::VariableLengthString:
+	// Skip n byte for Get
+	// Write n byte zero for Put
+	IgnoreByte
 )
 
 func (r *BufReader) SetCom(com Command) {
@@ -110,24 +118,41 @@ func (r *BufReader) SkipBytes(n int) {
 }
 
 func (r *BufReader) Get(values ...interface{}) {
-	n := len(values)
-	for i := 0; i < n; i++ {
+	argc := len(values)
+	for i := 0; i < argc; i++ {
 		v := values[i]
 		t := UndType
 
 		if v == nil {
 			panic(fmt.Sprintf("Can not get %T(nil)", v))
 		}
-		val := reflect.ValueOf(v)
-		if val.CanAddr() {
-			panic(fmt.Sprintf("Must use a addressable value instead of %T(%v)", v, v))
-		}
-
-		if i < n-1 {
+		if i < argc-1 {
 			if ty, ok := values[i+1].(ProtoType); ok {
 				t = ty
 				i++
 			}
+		}
+
+		if t == IgnoreByte {
+			var n int
+			switch v.(type) {
+			case int:
+				n = v.(int)
+			case uint:
+				n = int(v.(uint))
+			default:
+				panic("Ignore byte need a size")
+			}
+			_, err := io.CopyN(ioutil.Discard, r, int64(n))
+			if err != nil {
+				panic(err)
+			}
+			continue
+		}
+
+		val := reflect.ValueOf(v)
+		if val.CanAddr() {
+			panic(fmt.Sprintf("Must use a addressable value instead of %T(%v)", v, v))
 		}
 
 		if t == UndType {
@@ -165,7 +190,9 @@ func (r *BufReader) Get(values ...interface{}) {
 			}
 		} else if t == StrVar {
 			// need specified a size
-			if i < n-1 {
+			if i < argc-1 {
+				//				sizeVar := reflect.ValueOf(values[i+1])
+				//				if sizeVar.Kind() == reflect.Ptr{sizeVar = sizeVar.Elem()}
 				if size, ok := values[i+1].(int); ok {
 					i++
 					buf := make([]byte, size)
@@ -330,11 +357,11 @@ CAN_NOT_GET:
 }
 
 func (w *BufWriter) Put(values ...interface{}) {
-	n := len(values)
-	for i := 0; i < n; i++ {
+	argc := len(values)
+	for i := 0; i < argc; i++ {
 		v := values[i]
 		t := UndType
-		if i < n-1 {
+		if i < argc-1 {
 			if ty, ok := values[i+1].(ProtoType); ok {
 				t = ty
 				i++
@@ -344,6 +371,25 @@ func (w *BufWriter) Put(values ...interface{}) {
 		if v == nil {
 			panic(fmt.Sprintf("Can not put %T(nil)", v))
 		}
+
+		if t == IgnoreByte {
+			var n int
+			switch v.(type) {
+			case int:
+				n = v.(int)
+			case uint:
+				n = int(v.(uint))
+			default:
+				panic("Ignore byte need a size")
+			}
+			bytes := make([]byte, n)
+			_, err := w.Write(bytes)
+			if err != nil {
+				panic(err)
+			}
+			continue
+		}
+
 		val := reflect.ValueOf(v)
 		if val.Kind() == reflect.Ptr {
 			v = val.Elem().Interface()
@@ -388,7 +434,7 @@ func (w *BufWriter) Put(values ...interface{}) {
 			}
 		} else if t == StrVar {
 			// need specified a size
-			if i < n-1 {
+			if i < argc-1 {
 				if size, ok := values[i+1].(int); ok {
 					i++
 					switch v.(type) {

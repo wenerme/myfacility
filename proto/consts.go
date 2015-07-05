@@ -139,23 +139,9 @@ const (
 
 const (
 	// internal server command
-	// <p/>
-	// Payload
-	// 1              [00] COM_SLEEP
-	// Returns
-	// ERR_Packet
 	COM_SLEEP Command = iota
 	// Tells the server that the client wants to close the connection
-	// <p/>
 	// response: either a connection close or a OK_Packet
-	// <p/>
-	// Payload
-	// 1              [01] COM_QUIT
-	// Fields
-	// command (1) -- 0x01 COM_QUIT
-	// <p/>
-	// Example
-	// 01 00 00 00 01
 	COM_QUIT
 	// change the default schema of the connection
 	// <p/>
@@ -413,9 +399,13 @@ const (
 	// <p/>
 	// character set is the connection character set as defined in Protocol::CharacterSet and is also the encoding of user and schema-name.
 	COM_CHANGE_USER
+	// https://dev.mysql.com/doc/internals/en/com-binlog-dump.html
 	COM_BINLOG_DUMP
+	// https://dev.mysql.com/doc/internals/en/com-table-dump.html
 	COM_TABLE_DUMP
+	// https://dev.mysql.com/doc/internals/en/com-connect-out.html
 	COM_CONNECT_OUT
+	// https://dev.mysql.com/doc/internals/en/com-register-slave.html
 	COM_REGISTER_SLAVE
 	// create a prepared statement
 	// <p/>
