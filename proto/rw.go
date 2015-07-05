@@ -191,25 +191,31 @@ func (r *BufReader) Get(values ...interface{}) {
 		} else if t == StrVar {
 			// need specified a size
 			if i < argc-1 {
-				//				sizeVar := reflect.ValueOf(values[i+1])
-				//				if sizeVar.Kind() == reflect.Ptr{sizeVar = sizeVar.Elem()}
-				if size, ok := values[i+1].(int); ok {
-					i++
-					buf := make([]byte, size)
-					_, err := r.Read(buf)
-					if err != nil {
-						panic(err)
-					}
-					switch v.(type) {
-					case *string:
-						*v.(*string) = string(buf)
-					case *[]byte:
-						*v.(*[]byte) = buf
-					}
-					continue
-				} else {
+				var n int
+				size := values[i+1]
+				switch size.(type) {
+				case int:
+					n = size.(int)
+				case uint8:
+					n = int(size.(uint8))
+				case *uint8:
+					n = int(*size.(*uint8))
+				default:
 					panic(errors.New("Type StrVar need a int type size"))
 				}
+				i++
+				buf := make([]byte, n)
+				_, err := r.Read(buf)
+				if err != nil {
+					panic(err)
+				}
+				switch v.(type) {
+				case *string:
+					*v.(*string) = string(buf)
+				case *[]byte:
+					*v.(*[]byte) = buf
+				}
+				continue
 			} else {
 				panic(errors.New("Type StrVar need a size"))
 			}
