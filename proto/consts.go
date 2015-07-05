@@ -1,7 +1,7 @@
 package proto
 
 //go:vet
-//go:generate stringer -output=strings.go -type=Capability,Status,Command,SessionState,ProtoType,ColumnType
+//go:generate stringer -output=strings.go -type=Capability,Status,Command,SessionState,ProtoType,ColumnType,CursorType
 
 // Packet less than 50 will not compress
 const MIN_COMPRESS_LENGTH = 50
@@ -16,7 +16,8 @@ type (
 	Capability   uint32
 	CharacterSet uint16
 	// http://dev.mysql.com/doc/internals/en/status-flags.html#packet-Protocol::StatusFlags
-	Status uint16
+	Status     uint16
+	CursorType uint8
 )
 
 func (this Status) Has(c Status) bool {
@@ -65,6 +66,24 @@ func (this Status) Dump() []Status {
 	return caps
 }
 
+// http://dev.mysql.com/doc/internals/en/com-set-option.html
+const (
+	MYSQL_OPTION_MULTI_STATEMENTS_ON = iota
+	MYSQL_OPTION_MULTI_STATEMENTS_OFF
+)
+
+//https://dev.mysql.com/doc/internals/en/com-binlog-dump-gtid.html
+const (
+	BINLOG_DUMP_NON_BLOCK = 1 << iota
+	BINLOG_THROUGH_POSITION
+	BINLOG_THROUGH_GTID
+)
+const (
+	CURSOR_TYPE_NO_CURSOR CursorType = iota
+	CURSOR_TYPE_READ_ONLY
+	CURSOR_TYPE_FOR_UPDATE
+	CURSOR_TYPE_SCROLLABLE
+)
 const (
 	// one or more system variables changed. See also: session_track_system_variables
 	SESSION_TRACK_SYSTEM_VARIABLES SessionState = iota
@@ -408,26 +427,10 @@ const (
 	// https://dev.mysql.com/doc/internals/en/com-register-slave.html
 	COM_REGISTER_SLAVE
 	// create a prepared statement
-	// <p/>
-	// Fields
-	// command (1) -- [16] the COM_STMT_PREPARE command
-	// <p/>
-	// query (string.EOF) -- the query to prepare
-	// <p/>
-	// Example
-	// 1c 00 00 00 16 53 45 4c    45 43 54 20 43 4f 4e 43    .....SELECT CONC
-	// 41 54 28 3f 2c 20 3f 29    20 41 53 20 63 6f 6c 31    AT(?, ?) AS col1
-	// Implemented By
-	// mysqld_stmt_prepare()
-	// <p/>
-	// Return
-	// COM_STMT_PREPARE_OK on success, ERR_Packet otherwise
-	// <p/>
-	// Note
-	// As LOAD DATA isn't supported by COM_STMT_PREPARE yet, no Protocol::LOCAL_INFILE_Request is expected here. Compare this to COM_QUERY_Response.
+	// Return COM_STMT_PREPARE_OK on success, ERR_Packet otherwise
+	// Note As LOAD DATA isn't supported by COM_STMT_PREPARE yet, no Protocol::LOCAL_INFILE_Request is expected here. Compare this to COM_QUERY_Response.
 	COM_STMT_PREPARE
 	// COM_STMT_EXECUTE asks the server to execute a prepared statement as identified by stmt-id.
-	// <pre>
 	//  * It sends the values for the placeholders of the prepared statement
 	// (if it contained any) in Binary Protocol Value form. The type of each
 	// parameter is made up of two bytes:
@@ -435,35 +438,8 @@ const (
 	//      a flag byte which has the highest bit set if the type is unsigned [80]
 	//  * The num-params used for this packet has to match the num_params of the COM_STMT_PREPARE_OK of the corresponding prepared statement.
 	//  * The server returns a COM_STMT_EXECUTE Response.
-	//  * COM_STMT_EXECUTE:
-	// COM_STMT_EXECUTE
-	// execute a prepared statement
-	//  * direction: client -> server
-	// response: COM_STMT_EXECUTE Response
-	//  * payload:
-	// 1              [17] COM_STMT_EXECUTE
-	// 4              stmt-id
-	// 1              flags
-	// 4              iteration-count
-	// if num-params > 0:
-	// n              NULL-bitmap, length: (num-params+7)/8
-	// 1              new-params-bound-flag
-	// if new-params-bound-flag == 1:
-	// n              type of each parameter, length: num-params * 2
-	// n              value of each parameter
-	//  * example:
-	// 12 00 00 00 17 01 00 00    00 00 01 00 00 00 00 01    ................
-	// 0f 00 03 66 6f 6f                                     ...foo
-	// The iteration-count is always 1.
-	//  * The flags are:
-	// Flags Constant Name
-	// 0x00 CURSOR_TYPE_NO_CURSOR
-	// 0x01 CURSOR_TYPE_READ_ONLY
-	// 0x02 CURSOR_TYPE_FOR_UPDATE
-	// 0x04 CURSOR_TYPE_SCROLLABLE
-	// </pre>
 	// NULL-bitmap is like NULL-bitmap for the Binary Protocol Resultset Row just that it has a bit-offset of 0.
-	//  * @see <a href=http://dev.mysql.com/doc/internals/en/com-stmt-execute.html>com-stmt-execute</a>
+	// http://dev.mysql.com/doc/internals/en/com-stmt-execute.html
 	COM_STMT_EXECUTE
 	// COM_STMT_SEND_LONG_DATA sends the data for a column. Repeating to send it, appends the data to the parameter.
 	// <p/>
@@ -480,70 +456,36 @@ const (
 	// 2              param-id
 	// n              data
 	// COM_STMT_SEND_LONG_DATA has to be sent before COM_STMT_EXECUTE.
+	// https://dev.mysql.com/doc/internals/en/com-stmt-send-long-data.html
 	COM_STMT_SEND_LONG_DATA
 	// COM_STMT_CLOSE deallocates a prepared statement
-	// <pre>
-	// No response is sent back to the client.
-	//  * COM_STMT_CLOSE:
-	// COM_STMT_CLOSE
 	// direction: client -> server
 	// response: none
-	//  * payload:
-	// 1              [19] COM_STMT_CLOSE
-	// 4              statement-id
-	//  * example:
-	// 05 00 00 00 19 01 00 00    00                         .........
-	// </pre>
-	//  * @see <a href=http://dev.mysql.com/doc/internals/en/com-stmt-close.html>com-stmt-close</a>
+	//  http://dev.mysql.com/doc/internals/en/com-stmt-close.html
 	COM_STMT_CLOSE
 	// COM_STMT_RESET resets the data of a prepared statement which was accumulated with COM_STMT_SEND_LONG_DATA commands and closes the cursor if it was opened with COM_STMT_EXECUTE
-	// <pre>
 	// The server will send a OK_Packet if the statement could be reset, a ERR_Packet if not.
-	//  * COM_STMT_RESET:
-	// COM_STMT_RESET
 	// direction: client -> server
 	// response: OK or ERR
-	//  * payload:
-	// 1              [1a] COM_STMT_RESET
-	// 4              statement-id
-	//  * example:
-	// 05 00 00 00 1a 01 00 00    00                         .........
-	// </pre>
-	//  * @see <a href=http://dev.mysql.com/doc/internals/en/com-stmt-reset.html>com-stmt-reset</a>
+	// http://dev.mysql.com/doc/internals/en/com-stmt-reset.html
 	COM_STMT_RESET
 	// Allows to enable and disable: CLIENT_MULTI_STATEMENTS
-	// <pre>
 	// for the current connection. The option operation is one of:
 	//  * Operation Constant Name
-	// 0 MYSQL_OPTION_MULTI_STATEMENTS_ON
-	// 1 MYSQL_OPTION_MULTI_STATEMENTS_OFF
 	//  * On success it returns a EOF_Packet otherwise a ERR_Packet.
 	//  * COM_SET_OPTION
 	// set options for the current connection
 	//  * response: EOF or ERR
-	//  * payload:
-	// 1              [1b] COM_SET_OPTION
-	// 2              option operation
-	// </pre>
-	//  * @see <a href=http://dev.mysql.com/doc/internals/en/com-set-option.html>com-set-option</a>
+	// http://dev.mysql.com/doc/internals/en/com-set-option.html
 	COM_SET_OPTION
 	// Fetch rows from a existing resultset after a COM_STMT_EXECUTE.
-	// <pre>
-	// Payload
-	// 1              [1c] COM_STMT_FETCH
-	// 4              stmt-id
-	// 4              num rows
-	// Returns
 	// a COM_STMT_FETCH response( a multi-resultset or a ERR_Packet )
-	// </pre>
+	// https://dev.mysql.com/doc/internals/en/com-stmt-fetch.html
 	COM_STMT_FETCH
 	// an internal command in the server
-	// <p/>
-	// Payload
-	// 1              [1d] COM_DAEMON
-	// Returns
-	// ERR_Packet
+	// Returns ERR_Packet
 	COM_DAEMON
+	// https://dev.mysql.com/doc/internals/en/com-binlog-dump-gtid.html
 	COM_BINLOG_DUMP_GTID
 	// Resets the session state; more lightweight than COM_CHANGE_USER because it does not close and reopen the connection, and does not re-authenticate
 	// <p/>
