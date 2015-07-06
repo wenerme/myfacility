@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/davecgh/go-spew/spew"
@@ -83,6 +84,7 @@ func proxy(svr net.Conn, cli net.Conn) {
 	hsr := &HandshakeResponse{}
 	com := &ComPack{}
 	rs := &QueryResponse{}
+	commands := NewCommandPacketMap()
 	var p Pack
 	var list []Pack
 	var err error
@@ -126,6 +128,13 @@ func proxy(svr net.Conn, cli net.Conn) {
 			sp.SetSeq(cp.Seq())
 			_, err = sp.WriteSendPacket(com)
 			log.Info("Handle command %v", com.Type)
+			if log.IsEnabledFor(logging.DEBUG) {
+				r := &BufReader{Reader: bufio.NewReader(bytes.NewReader(com.Data))}
+				r.SetCap(sp.Cap())
+				cmd := commands[com.Type]
+				cmd.Read(r)
+				spew.Dump(cmd)
+			}
 			sp.SetCom(com.Type)
 			cp.SetCom(com.Type)
 			switch com.Type {
@@ -225,6 +234,8 @@ const (
 	SEND_QUERY_RESULT
 	READ_FIELD_LIST
 	SEND_FIELD_LIST
+
+	START_BINLOG_DUMP
 )
 
 func flags() {

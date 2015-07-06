@@ -35,4 +35,8 @@ fd 80 00 00 00 00 05 00    00 04 fe 00 00 02 00 1a    ................
 	p.Write(b)
 	//	fmt.Printf("ORG\n%s\nWRITE\n%s\n",hex.Dump(DecodeDump(dump)), hex.Dump(data.Bytes()))
 	assert.EqualValues(DecodeDump(dump), data.Bytes())
+	//
+	//	for i:=0; i < 255; i ++{
+	//		fmt.Println(Command(i))
+	//	}
 }

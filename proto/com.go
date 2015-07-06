@@ -53,14 +53,27 @@ type ComInitDb struct {
 }
 
 func (p *ComInitDb) Read(c Reader) {
-	c.SkipBytes(1)
-	c.Get(&p.Schema, StrEof)
+	c.Get(1, IgnoreByte, &p.Schema, StrEof)
 }
 func (p *ComInitDb) Write(c Writer) {
-	c.Put(COM_INIT_DB, &p.Schema, StrEof)
+	c.Put(p.Type(), &p.Schema, StrEof)
 }
 func (p *ComInitDb) Type() Command {
 	return COM_INIT_DB
+}
+
+type ComCreateDb struct {
+	Schema string
+}
+
+func (p *ComCreateDb) Read(c Reader) {
+	c.Get(1, IgnoreByte, &p.Schema, StrEof)
+}
+func (p *ComCreateDb) Write(c Writer) {
+	c.Put(p.Type(), &p.Schema, StrEof)
+}
+func (p *ComCreateDb) Type() Command {
+	return COM_CREATE_DB
 }
 
 type ComSetOption struct {
@@ -229,16 +242,15 @@ func (p *ComFieldList) Type() Command {
 
 type ComPack struct {
 	Type Command
-	data []byte
-	buf  *Buffer
+	Data []byte
 }
 
 func (p *ComPack) Read(c Reader) {
-	c.Get(&p.data, StrEof)
-	p.Type = Command(p.data[0])
+	c.Get(&p.Data, StrEof)
+	p.Type = Command(p.Data[0])
 }
 func (p *ComPack) Write(c Writer) {
-	c.Put(&p.data, StrEof)
+	c.Put(&p.Data, StrEof)
 }
 
 func (p *ComPack) ReadPack() (com CommandPack) {
@@ -253,4 +265,41 @@ func (p *ComPack) ReadPack() (com CommandPack) {
 		com = &ComQuery{}
 	}
 	return nil
+}
+func NewCommandPacketMap() map[Command]CommandPack {
+	m := map[Command]CommandPack{
+		COM_SLEEP:               ComSleep,
+		COM_QUIT:                ComQuit,
+		COM_INIT_DB:             &ComInitDb{},
+		COM_QUERY:               &ComQuery{},
+		COM_FIELD_LIST:          &ComFieldList{},
+		COM_CREATE_DB:           &ComCreateDb{},
+		COM_DROP_DB:             &ComDropDb{},
+		COM_REFRESH:             &ComRefresh{},
+		COM_SHUTDOWN:            &ComShutdown{},
+		COM_STATISTICS:          ComStatistics,
+		COM_PROCESS_INFO:        ComProcessInfo,
+		COM_CONNECT:             ComConnect,
+		COM_PROCESS_KILL:        ComProcessInfo,
+		COM_DEBUG:               ComDebug,
+		COM_PING:                ComPing,
+		COM_TIME:                ComTime,
+		COM_DELAYED_INSERT:      ComDelayInsert,
+		COM_CHANGE_USER:         &ComChangeUser{},
+		COM_BINLOG_DUMP:         &ComBinlogDump{},
+		COM_TABLE_DUMP:          &ComTableDump{},
+		COM_CONNECT_OUT:         ComConnectOut,
+		COM_REGISTER_SLAVE:      &ComRegisterSlave{},
+		COM_STMT_PREPARE:        &ComStmtPrepare{},
+		COM_STMT_EXECUTE:        &ComStmtExecute{},
+		COM_STMT_SEND_LONG_DATA: &ComStmtSendLongData{},
+		COM_STMT_CLOSE:          &ComStmtClose{},
+		COM_STMT_RESET:          &ComStmtReset{},
+		COM_SET_OPTION:          &ComSetOption{},
+		COM_STMT_FETCH:          &ComStmtFetch{},
+		COM_DAEMON:              ComDaemon,
+		COM_BINLOG_DUMP_GTID:    &ComBinlogDumpGtid{},
+		COM_RESET_CONNECTION:    ComResetConnection,
+	}
+	return m
 }

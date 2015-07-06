@@ -1,9 +1,22 @@
-package proto
-import "log"
+package binlog
+
 import (
-	. "../../proto"
+	"github.com/op/go-logging"
+	"github.com/wenerme/myfacility/proto"
+	"os"
 )
 
+var log = logging.MustGetLogger("binlog")
+
+// 初始化 Log
+func init() {
+	//	format := logging.MustStringFormatter("%{color}%{time:15:04:05} %{level:.4s} %{shortfunc} %{color:reset} %{message}", )
+	format := logging.MustStringFormatter("%{color}%{time:15:04:05.000} %{level:.4s} %{longfile} %{shortfunc} %{color:reset} %{message}")
+	backend1 := logging.NewLogBackend(os.Stdout, "", 0)
+	backend1Formatter := logging.NewBackendFormatter(backend1, format)
+	logging.SetBackend(backend1Formatter)
+	logging.SetLevel(logging.DEBUG, "binlog")
+}
 
 /*
 post-header:
@@ -28,27 +41,19 @@ payload:
 */
 // http://dev.mysql.com/doc/internals/en/table-map-event.html
 type TableMapEvent struct {
-	SchemaName    StrF
-	TableName     StrF
-	ColumnDef     StrL
-	ColumnMetaDef StrL
-	NullBitMask   StrV
-}
-func (p *TableMapEvent)Read(c PackReader) {
-	p.SchemaName = c.MustReadStrF(uint(c.MustReadInt1()))
-	c.MustReadInt1()// 00
-	p.TableName = c.MustReadStrF(uint(c.MustReadInt1()))
-	c.MustReadInt1()// 00
-	p.ColumnDef = c.MustReadStrL()
-	p.ColumnMetaDef = c.MustReadStrL()
-	// Original is +8) /7
-	p.NullBitMask = c.MustReadStrV(uint(len(p.ColumnDef)+7)/8)
+	SchemaName    string
+	TableName     string
+	ColumnDef     string
+	ColumnMetaDef string
+	NullBitMask   string
 }
 
-func (p *TableMapEvent)Write(c PackWriter) {
+func (p *TableMapEvent) Read(c proto.Reader) {
+}
+
+func (p *TableMapEvent) Write(c proto.Writer) {
 	log.Panic("Unsupported")
 }
-
 
 /*
 header:
@@ -82,8 +87,8 @@ string.var_len       value of each field as defined in table-map
 // Only support version2
 type RowsEvent struct {
 	ColumnCount uint
-
 }
+
 type RowEvent struct {
 	NullBitMask string
 	Value       string

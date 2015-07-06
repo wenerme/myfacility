@@ -90,20 +90,9 @@ func (b *Buffer) RecvPacket() (n int, err error) {
 	}
 	b.seq = uint8(l >> 24)
 	l = l << 8 >> 8
-	// TODO batch read
-	data := make([]byte, l)
-	var read int
-	for {
-		read, err = b.con.Read(data[n:])
-		n += read
-		if err != nil {
-			return
-		}
-		if n == int(l) {
-			break
-		}
-	}
-	b.buf.Write(data)
+	var written int64
+	written, err = io.CopyN(b.buf, b.con, int64(l))
+	n = 4 + int(written)
 	if log.IsEnabledFor(logging.DEBUG) {
 		log.Debug("Recv packet#%d (%d)\n%s", b.seq, n, hex.Dump(b.buf.Bytes()))
 	}
