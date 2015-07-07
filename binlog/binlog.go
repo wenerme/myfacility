@@ -26,7 +26,6 @@ post-header:
   6              table id
     }
   2              flags
-
 payload:
   1              schema name length
   string         schema name
@@ -41,14 +40,29 @@ payload:
 */
 // http://dev.mysql.com/doc/internals/en/table-map-event.html
 type TableMapEvent struct {
-	SchemaName    string
-	TableName     string
-	ColumnDef     string
-	ColumnMetaDef string
-	NullBitMask   string
+	TableId        uint64
+	Flag           uint16
+	SchemaName     string
+	TableName      string
+	ColumnTypes    []byte
+	ColumnMetadata []byte
+	NullBitMask    []byte
 }
 
 func (p *TableMapEvent) Read(c proto.Reader) {
+	var n uint8
+	var columns uint
+	// TODO is ok to ignore post_header_len ?
+	// Note Can use StrNul ?
+	c.Get(&p.TableId, proto.Int6,
+		&p.Flag,
+		&n, &p.SchemaName, proto.StrVar, &n,
+		1, proto.IgnoreByte,
+		&n, &p.TableName, proto.StrVar, &n,
+		1, proto.IgnoreByte,
+		&columns, &p.ColumnTypes, proto.StrVar, &columns,
+		&p.ColumnMetadata)
+	c.Get(&p.NullBitMask, proto.StrVar, (columns+7)/8)
 }
 
 func (p *TableMapEvent) Write(c proto.Writer) {

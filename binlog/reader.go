@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/wenerme/myfacility/proto"
 	"io"
@@ -28,14 +29,28 @@ func ReadBinlog(reader io.Reader) (err error) {
 	}
 
 	h := &EventHeader{}
-	h.Read(c)
-	spew.Dump(h)
-	_, err = io.CopyN(buf, c, int64(h.EventSize))
-	if err != nil {
-		panic(err)
+	m := NewEventMap()
+	type readable interface {
+		Read(proto.Reader)
 	}
-	f := &FormatDescriptionEvent{}
-	f.Read(r)
-	spew.Dump(f)
+	for {
+		h.Read(c)
+		//		spew.Dump(h)
+		_, err = io.CopyN(buf, c, int64(h.EventSize-19))
+		if err != nil {
+			return
+		}
+		p := m[h.EventType]
+		if p == nil {
+			fmt.Println("Skip event ", h.EventType)
+			buf.Reset()
+			continue
+		}
+		p.(readable).Read(r)
+		spew.Dump(p)
+		if r.More() {
+			panic(spew.Sdump("Should no more ", h))
+		}
+	}
 	return
 }

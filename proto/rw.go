@@ -196,10 +196,20 @@ func (r *BufReader) Get(values ...interface{}) {
 				switch size.(type) {
 				case int:
 					n = size.(int)
+				case uint:
+					n = int(size.(uint))
+				case *int:
+					n = *size.(*int)
+				case *uint:
+					n = int(*size.(*uint))
 				case uint8:
 					n = int(size.(uint8))
 				case *uint8:
 					n = int(*size.(*uint8))
+				case *uint16:
+					n = int(*size.(*uint16))
+				case *uint32:
+					n = int(*size.(*uint32))
 				default:
 					panic(errors.New("Type StrVar need a int type size"))
 				}

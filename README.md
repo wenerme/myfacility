@@ -7,7 +7,7 @@ MySQL Facility in Go
 	* MySQL binlog replication protocol in go
 * myproxy
 	* Proxy for MySQL-Server in Go
-* mymon
+* [ ] mymon
 	* MySQL monitor by packet capture
 * [ ] server
 	* MySQL driver
@@ -16,11 +16,13 @@ MySQL Facility in Go
 	* Store in redis,ledis
 * [ ] driver
 	* Yet another mysql driver implement database/sql
+
 Motivation
 ==========
-* Learn go
-* Think in go
-* Try to go
+* Learning go
+* Thinking in go
+* Trying to go
+* Understand MySQL protocol
 
 See Also
 ========
