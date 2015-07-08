@@ -82,9 +82,18 @@ const (
 	INCIDENT_LOST_EVENTS
 )
 
-type BinlogEventFlag uint16
+// http://dev.mysql.com/doc/internals/en/intvar-event.html
+type IntVarType uint8
+
+const (
+	INVALID_INT_EVENT IntVarType = iota
+	LAST_INSERT_ID_EVENT
+	INSERT_ID_EVENT
+)
 
 // http://dev.mysql.com/doc/internals/en/binlog-event-flag.html
+type BinlogEventFlag uint16
+
 const (
 	// 	gets unset in the FORMAT_DESCRIPTION_EVENT when the file gets closed to detect broken binlogs
 	LOG_EVENT_BINLOG_IN_USE_F BinlogEventFlag = 1 << iota
@@ -134,15 +143,6 @@ func (p eventTypePack) Write(c proto.Writer) {
 func (p eventTypePack) Type() EventType {
 	return EventType(p)
 }
-
-type IntVarType uint8
-
-// http://dev.mysql.com/doc/internals/en/intvar-event.html
-const (
-	INVALID_INT_EVENT IntVarType = iota
-	LAST_INSERT_ID_EVENT
-	INSERT_ID_EVENT
-)
 
 type IntvarEvent struct {
 	VarType IntVarType
@@ -388,13 +388,6 @@ func (p *MariaGtidEvent) Read(c proto.Reader) {
 		n += 2
 	}
 	c.Get(n, proto.IgnoreByte)
-	/*
-
-	   long n = 6 + ((e.getFlags2() & MariaGtidEventData.FL_GROUP_COMMIT_ID) > 0 ? 2 : 0);
-	   long skip = is.skip(n);
-	   assert n == skip;
-	   return e;
-	*/
 }
 func (p *MariaGtidEvent) Type() EventType {
 	return MARIA_GTID_EVENT

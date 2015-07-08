@@ -43,12 +43,18 @@ func ReadBinlog(reader io.Reader) (err error) {
 		p := m[h.EventType]
 		if p == nil {
 			fmt.Println("Skip event ", h.EventType)
+			if h.EventType == WRITE_ROWS_EVENTv1 {
+				spew.Dump(buf.Bytes())
+			}
 			buf.Reset()
 			continue
 		}
 		p.(readable).Read(r)
 		spew.Dump(p)
 		if r.More() {
+			b := []byte{}
+			r.Get(&b, proto.StrEof)
+			spew.Dump(b)
 			panic(spew.Sdump("Should no more ", h))
 		}
 	}

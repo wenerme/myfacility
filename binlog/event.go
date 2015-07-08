@@ -78,7 +78,7 @@ func NewEventMap() map[EventType]interface{} {
 		WRITE_ROWS_EVENTv0:            nil,
 		UPDATE_ROWS_EVENTv0:           nil,
 		DELETE_ROWS_EVENTv0:           nil,
-		WRITE_ROWS_EVENTv1:            nil,
+		WRITE_ROWS_EVENTv1:            &WriteRowsEventV1{},
 		UPDATE_ROWS_EVENTv1:           nil,
 		DELETE_ROWS_EVENTv1:           nil,
 		INCIDENT_EVENT:                &IncidentEvent{},

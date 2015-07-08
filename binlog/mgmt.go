@@ -5,10 +5,6 @@ import (
 	"strings"
 )
 
-type Reader interface {
-	proto.Reader
-}
-
 // A start event is the first event of a binlog for binlog-version 1 to 3.
 // http://dev.mysql.com/doc/internals/en/start-event-v3.html
 type StartEventV3 struct {
@@ -20,7 +16,7 @@ type StartEventV3 struct {
 	CreateTimestamp uint32
 }
 
-func (p *StartEventV3) Read(c Reader) {
+func (p *StartEventV3) Read(c proto.Reader) {
 	c.Get(&p.BinlogVersion, &p.MySQLServerVersion, proto.StrVar, 50, &p.CreateTimestamp)
 }
 func (p *StartEventV3) Type() EventType {

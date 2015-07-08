@@ -4,6 +4,7 @@ import "errors"
 
 type ColumnType uint8
 
+// http://dev.mysql.com/doc/internals/en/date-and-time-data-type-representation.html
 const (
 	MYSQL_TYPE_DECIMAL ColumnType = iota
 	MYSQL_TYPE_TINY
