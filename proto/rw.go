@@ -234,6 +234,7 @@ func (r *BufReader) Get(values ...interface{}) {
 		if err != nil {
 			panic(err)
 		}
+		//		spew.Dump("Get ", v, t)
 	}
 }
 func (r *BufReader) GetType(v interface{}, t ProtoType) (n int, err error) {
@@ -362,7 +363,6 @@ TYPE_SWITCH:
 		default:
 			goto CAN_NOT_GET
 		}
-
 	default:
 		goto CAN_NOT_GET
 	}
@@ -577,6 +577,7 @@ TYPE_SWITCH:
 			n++
 		}
 	default:
+		goto CAN_NOT_PUT
 	}
 	return
 CAN_NOT_PUT:
