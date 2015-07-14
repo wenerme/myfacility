@@ -93,9 +93,9 @@ func (i SessionState) String() string {
 	return _SessionState_name[_SessionState_index[i]:_SessionState_index[i+1]]
 }
 
-const _ProtoType_name = "UndTypeInt1Int2Int3Int4Int6Int8IntEncStrEofStrNulStrEncStrVarIgnoreByte"
+const _ProtoType_name = "UndTypeIntInt1Int2Int3Int4Int6Int8IntEncStrEofStrNulStrEncStrVarIgnoreByte"
 
-var _ProtoType_index = [...]uint8{0, 7, 11, 15, 19, 23, 27, 31, 37, 43, 49, 55, 61, 71}
+var _ProtoType_index = [...]uint8{0, 7, 10, 14, 18, 22, 26, 30, 34, 40, 46, 52, 58, 64, 74}
 
 func (i ProtoType) String() string {
 	if i < 0 || i >= ProtoType(len(_ProtoType_index)-1) {

@@ -62,8 +62,8 @@ func ReadBinlog(rd io.Reader) (err error) {
 			defer func() {
 				if err := recover(); err != nil {
 					fmt.Println("============================================")
-					fmt.Println(err)
 					spew.Dump(h, p)
+					fmt.Println(err)
 					n, _ := rd.(io.Seeker).Seek(0, os.SEEK_CUR)
 					fmt.Printf("Current File Seek %d\n", n)
 					debug.PrintStack()

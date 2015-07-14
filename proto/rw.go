@@ -2,8 +2,8 @@ package proto
 
 import (
 	"bufio"
-	"errors"
 	"fmt"
+	"github.com/spacemonkeygo/errors"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -55,8 +55,8 @@ type ProtoType int
 
 const (
 	UndType ProtoType = iota
-	//	Int // Must specify 1 2 3 4 5 6
-	Int1 // http://dev.mysql.com/doc/internals/en/integer.html
+	Int               // Must specify 1 2 3 4 5 6
+	Int1              // http://dev.mysql.com/doc/internals/en/integer.html
 	Int2
 	Int3
 	Int4
@@ -127,6 +127,7 @@ func (r *BufReader) Get(values ...interface{}) {
 		if v == nil {
 			panic(fmt.Sprintf("Can not get %T(nil)", v))
 		}
+		// Detect next type parameter
 		if i < argc-1 {
 			if ty, ok := values[i+1].(ProtoType); ok {
 				t = ty
@@ -135,20 +136,66 @@ func (r *BufReader) Get(values ...interface{}) {
 		}
 
 		if t == IgnoreByte {
-			var n int
-			switch v.(type) {
-			case int:
-				n = v.(int)
-			case uint:
-				n = int(v.(uint))
-			default:
-				panic("Ignore byte need a size")
-			}
-			_, err := io.CopyN(ioutil.Discard, r, int64(n))
-			if err != nil {
-				panic(err)
+			if n, ok := checkInt(v); ok {
+				_, err := io.CopyN(ioutil.Discard, r, int64(n))
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				panic(errors.New("Ignore byte need a int size"))
 			}
 			continue
+		}
+
+		// Type var need a size, GetType cannot handle this
+		if t == StrVar {
+			if i >= argc-1 {
+				panic(errors.New("Type StrVar need a size"))
+			}
+			if n, ok := checkInt(values[i+1]); ok {
+				i++
+				buf := make([]byte, n)
+				_, err := r.Read(buf)
+				if err != nil {
+					panic(err)
+				}
+				switch v.(type) {
+				case *string:
+					*v.(*string) = string(buf)
+				case *[]byte:
+					*v.(*[]byte) = buf
+				}
+			} else {
+				panic(errors.New("Type StrVar need a int type size"))
+			}
+			continue
+		}
+
+		if t == Int {
+			if i >= argc-1 {
+				panic(errors.New("Type Int need a size"))
+			}
+			if n, ok := checkInt(values[i+1]); ok {
+				i++
+				switch n {
+				case 1:
+					t = Int1
+				case 2:
+					t = Int2
+				case 3:
+					t = Int3
+				case 4:
+					t = Int4
+				case 6:
+					t = Int6
+				case 8:
+					t = Int8
+				default:
+					panic(errors.New(fmt.Sprintf("Unsupport Int size %v", n)))
+				}
+			} else {
+				panic(errors.New("Type Int need a size"))
+			}
 		}
 
 		val := reflect.ValueOf(v)
@@ -156,8 +203,8 @@ func (r *BufReader) Get(values ...interface{}) {
 			panic(fmt.Sprintf("Must use a addressable value instead of %T(%v)", v, v))
 		}
 
+		// For type alias
 		if t == UndType {
-			// For type alias
 			switch val.Elem().Kind() {
 			case reflect.Uint:
 				t = IntEnc
@@ -172,6 +219,7 @@ func (r *BufReader) Get(values ...interface{}) {
 			}
 		}
 
+		// Detect by type
 		if t == UndType {
 			switch v.(type) {
 			case *uint8:
@@ -189,48 +237,8 @@ func (r *BufReader) Get(values ...interface{}) {
 			default:
 				panic(errors.New(fmt.Sprintf("Can not get type of %T", v)))
 			}
-		} else if t == StrVar {
-			// need specified a size
-			if i < argc-1 {
-				var n int
-				size := values[i+1]
-				switch size.(type) {
-				case int:
-					n = size.(int)
-				case uint:
-					n = int(size.(uint))
-				case *int:
-					n = *size.(*int)
-				case *uint:
-					n = int(*size.(*uint))
-				case uint8:
-					n = int(size.(uint8))
-				case *uint8:
-					n = int(*size.(*uint8))
-				case *uint16:
-					n = int(*size.(*uint16))
-				case *uint32:
-					n = int(*size.(*uint32))
-				default:
-					panic(errors.New("Type StrVar need a int type size"))
-				}
-				i++
-				buf := make([]byte, n)
-				_, err := r.Read(buf)
-				if err != nil {
-					panic(err)
-				}
-				switch v.(type) {
-				case *string:
-					*v.(*string) = string(buf)
-				case *[]byte:
-					*v.(*[]byte) = buf
-				}
-				continue
-			} else {
-				panic(errors.New("Type StrVar need a size"))
-			}
 		}
+
 		_, err := r.GetType(v, t)
 		if err != nil {
 			panic(err)
@@ -400,19 +408,61 @@ func (w *BufWriter) Put(values ...interface{}) {
 		}
 
 		if t == IgnoreByte {
-			var n int
-			switch v.(type) {
-			case int:
-				n = v.(int)
-			case uint:
-				n = int(v.(uint))
-			default:
-				panic("Ignore byte need a size")
+			if n, ok := checkInt(v); ok {
+				// FIXME Should not make a bit bytes
+				bytes := make([]byte, n)
+				_, err := w.Write(bytes)
+				if err != nil {
+					panic(err)
+				}
+			} else {
+				panic(errors.New("Ignore byte need a int size"))
 			}
-			bytes := make([]byte, n)
-			_, err := w.Write(bytes)
-			if err != nil {
-				panic(err)
+			continue
+		}
+
+		if t == Int {
+			if i >= argc-1 {
+				panic(errors.New("Type Int need a size"))
+			}
+			if n, ok := checkInt(values[i+1]); ok {
+				i++
+				switch n {
+				case 1:
+					t = Int1
+				case 2:
+					t = Int2
+				case 3:
+					t = Int3
+				case 4:
+					t = Int4
+				case 6:
+					t = Int6
+				case 8:
+					t = Int8
+				default:
+					panic(errors.New(fmt.Sprintf("Unsupport Int size %v", n)))
+				}
+			} else {
+				panic(errors.New("Type Int need a size"))
+			}
+		}
+
+		// Type var need a size, GetType cannot handle this
+		if t == StrVar {
+			if i >= argc-1 {
+				panic(errors.New("Type StrVar need a size"))
+			}
+			if n, ok := checkInt(values[i+1]); ok {
+				i++
+				switch v.(type) {
+				case string:
+					w.Write([]byte(v.(string))[0:n])
+				case []byte:
+					w.Write(v.([]byte)[0:n])
+				}
+			} else {
+				panic(errors.New("Type StrVar need a int type size"))
 			}
 			continue
 		}
@@ -458,24 +508,6 @@ func (w *BufWriter) Put(values ...interface{}) {
 				t = StrEnc
 			default:
 				panic(errors.New(fmt.Sprintf("Can not get type of %T", v)))
-			}
-		} else if t == StrVar {
-			// need specified a size
-			if i < argc-1 {
-				if size, ok := values[i+1].(int); ok {
-					i++
-					switch v.(type) {
-					case string:
-						w.Write([]byte(v.(string))[0:size])
-					case []byte:
-						w.Write(v.([]byte)[0:size])
-					}
-					continue
-				} else {
-					panic(errors.New("Type StrVar need a int type size"))
-				}
-			} else {
-				panic(errors.New("Type StrVar need a size"))
 			}
 		}
 		_, err := w.PutType(v, t)
@@ -610,4 +642,29 @@ func (r *BufReader) Cap() Capability {
 }
 func (r *BufReader) HasCap(cap Capability) bool {
 	return r.cap.Has(cap)
+}
+
+func checkInt(v interface{}) (i int, ok bool) {
+	ok = true
+	switch v.(type) {
+	case int:
+		i = v.(int)
+	case uint:
+		i = int(v.(uint))
+	case *int:
+		i = *v.(*int)
+	case *uint:
+		i = int(*v.(*uint))
+	case uint8:
+		i = int(v.(uint8))
+	case *uint8:
+		i = int(*v.(*uint8))
+	case *uint16:
+		i = int(*v.(*uint16))
+	case *uint32:
+		i = int(*v.(*uint32))
+	default:
+		ok = false
+	}
+	return
 }
