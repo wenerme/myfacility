@@ -5,7 +5,6 @@ import (
 	"github.com/op/go-logging"
 	"github.com/wenerme/myfacility/proto"
 	"math"
-	"math/big"
 	"os"
 	"time"
 )
@@ -353,7 +352,12 @@ func readCell(t proto.ColumnType, meta uint, c proto.Reader) interface{} {
 		c.Get(&b, proto.StrVar, int(l))
 		r = b
 	case proto.MYSQL_TYPE_NEWDECIMAL:
-
+		precision := int(meta & 0xFF)
+		scale := int(meta) >> 8
+		decimalLength := determineDecimalLength(precision, scale)
+		var bytes []byte
+		c.Get(&bytes, proto.StrVar, decimalLength)
+		r = toDecimal(precision, scale, bytes)
 	default:
 		panic(fmt.Sprintf("Unsupport type %s meta %d", t, meta))
 	}
@@ -379,66 +383,4 @@ func splitDateTime(v uint64, d int, l int) []int {
 	}
 	r[l-1] = int(v)
 	return r
-}
-
-var DIG_PER_DEC = 9
-var DIG_TO_BYTES = []byte{0, 1, 1, 2, 2, 3, 3, 4, 4, 4}
-
-func determineDecimalLength(precision int, scale int) int {
-	x := precision - scale
-	ipDigits := x / DIG_PER_DEC
-	fpDigits := scale / DIG_PER_DEC
-	ipDigitsX := x - ipDigits*DIG_PER_DEC
-	fpDigitsX := scale - fpDigits*DIG_PER_DEC
-	return (ipDigits << 2) + int(DIG_TO_BYTES[ipDigitsX]) + (fpDigits << 2) + int(DIG_TO_BYTES[fpDigitsX])
-}
-
-// https://github.com/MariaDB/server/blob/10.1/strings/decimal.c
-// decimal2bin
-// bin2decimal
-func toDecimal(precision int, scale int, value []byte) big.Rat {
-	return big.Rat{}
-}
-
-/*
- private static BigDecimal toDecimal(int precision, int scale, byte[] value) {
-        boolean positive = (value[0] & 0x80) == 0x80;
-        value[0] ^= 0x80;
-        if (!positive) {
-            for (int i = 0; i < value.length; i++) {
-                value[i] ^= 0xFF;
-            }
-        }
-        int x = precision - scale;
-        int ipDigits = x / DIG_PER_DEC;
-        int ipDigitsX = x - ipDigits * DIG_PER_DEC;
-        int ipSize = (ipDigits << 2) + DIG_TO_BYTES[ipDigitsX];
-        int offset = DIG_TO_BYTES[ipDigitsX];
-        BigDecimal ip = offset > 0 ? BigDecimal.valueOf(bigEndianInteger(value, 0, offset)) : BigDecimal.ZERO;
-        for (; offset < ipSize; offset += 4) {
-            int i = bigEndianInteger(value, offset, 4);
-            ip = ip.movePointRight(DIG_PER_DEC).add(BigDecimal.valueOf(i));
-        }
-        int shift = 0;
-        BigDecimal fp = BigDecimal.ZERO;
-        for (; shift + DIG_PER_DEC <= scale; shift += DIG_PER_DEC, offset += 4) {
-            int i = bigEndianInteger(value, offset, 4);
-            fp = fp.add(BigDecimal.valueOf(i).movePointLeft(shift + DIG_PER_DEC));
-        }
-        if (shift < scale) {
-            int i = bigEndianInteger(value, offset, DIG_TO_BYTES[scale - shift]);
-            fp = fp.add(BigDecimal.valueOf(i).movePointLeft(scale));
-        }
-        BigDecimal result = ip.add(fp);
-        return positive ? result : result.negate();
-    }
-
-*/
-func bigEndianInteger(bytes []byte, offset int, length int) uint64 {
-	var result uint64
-	for i := offset; i < (offset + length); i++ {
-		b := bytes[i]
-		result = (result << 8) | uint64(b)
-	}
-	return result
 }
