@@ -55,7 +55,8 @@ type ProtoType int
 
 const (
 	UndType ProtoType = iota
-	Int1              // http://dev.mysql.com/doc/internals/en/integer.html
+	//	Int // Must specify 1 2 3 4 5 6
+	Int1 // http://dev.mysql.com/doc/internals/en/integer.html
 	Int2
 	Int3
 	Int4

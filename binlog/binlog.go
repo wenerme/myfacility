@@ -248,15 +248,52 @@ func readRow(tab *TableMapEvent, included bitSet, c proto.Reader) []interface{} 
 			continue
 		}
 		// mysql-5.6.24 sql/log_event.cc log_event_print_value (line 1980)
-		t, meta := tab.ColumnTypes[i], tab.ColumnMetadata[i]
-		_ = meta
-		row[i] = readCell(proto.ColumnType(t), meta, c)
+		t, meta, l := proto.ColumnType(tab.ColumnTypes[i]), tab.ColumnMetadata[i], 0
+		/*
+			 if (meta >= 256) {
+				int meta0 = meta >> 8, meta1 = meta & 0xFF;
+				if ((meta0 & 0x30) != 0x30) {
+					typeCode = meta0 | 0x30;
+					length = meta1 | (((meta0 & 0x30) ^ 0x30) << 4);
+				} else {
+					// mysql-5.6.24 sql/rpl_utility.h enum_field_types (line 278)
+					if (meta0 == ColumnType.ENUM.getCode() || meta0 == ColumnType.SET.getCode()) {
+						typeCode = meta0;
+					}
+					length = meta1;
+				}
+			} else {
+				length = meta;
+			}
+		*/
+		if t == proto.MYSQL_TYPE_STRING {
+			// big endian here
+			meta = (meta & 0xFF << 8) | (meta >> 8)
+			if meta >= 256 {
+				meta0, meta1 := uint8(meta>>8), uint8(meta)
+				if (meta0 & 0x30) != 0x30 {
+					t = proto.ColumnType(meta0 | 0x30)
+					l = int(meta1) | (((int(meta0) & 0x30) ^ 0x30) << 4)
+				} else {
+					// mysql-5.6.24 sql/rpl_utility.h enum_field_types (line 278)
+					mt := proto.ColumnType(meta0)
+					if mt == proto.MYSQL_TYPE_ENUM || mt == proto.MYSQL_TYPE_SET {
+						t = mt
+					}
+					l = int(meta1)
+				}
+			} else {
+				l = int(meta)
+			}
+			// log.Info("Meet mysql string %v %v %v", t, meta, l)
+		}
+		row[i] = readCell(t, meta, l, c)
 	}
 
 	return row
 }
 
-func readCell(t proto.ColumnType, meta uint, c proto.Reader) interface{} {
+func readCell(t proto.ColumnType, meta uint, length int, c proto.Reader) interface{} {
 	var r interface{}
 	//	defer func() {
 	//		log.Info("Cell %v %v %v '%v'", t, meta, l, r)
@@ -300,11 +337,11 @@ func readCell(t proto.ColumnType, meta uint, c proto.Reader) interface{} {
 		r = time.Date(p[5], time.Month(p[4]-1), p[3], p[2], p[1], p[0], 0, time.UTC)
 	case proto.MYSQL_TYPE_DATE:
 		// year 2,month 1,day 1, hour 1, minute 1, second 1, micro second 4
-		var length uint8
+		var l uint8
 		var year uint16
 		var month, day, hour, minute, second, msecond uint8
-		c.Get(&length)
-		switch length {
+		c.Get(&l)
+		switch l {
 		case 0:
 			r = time.Time{}
 		case 4:
@@ -320,7 +357,7 @@ func readCell(t proto.ColumnType, meta uint, c proto.Reader) interface{} {
 			// TODO not sure the msecond should time 1000
 			r = time.Date(int(year), time.Month(month), int(day), int(hour), int(minute), int(second), int(msecond)*1000, nil)
 		default:
-			panic(fmt.Sprintf("Unkonwn type %v length %d", t, length))
+			panic(fmt.Sprintf("Unkonwn type %v length %d", t, l))
 		}
 	case proto.MYSQL_TYPE_TIME:
 		var v uint64
@@ -358,6 +395,32 @@ func readCell(t proto.ColumnType, meta uint, c proto.Reader) interface{} {
 		var bytes []byte
 		c.Get(&bytes, proto.StrVar, decimalLength)
 		r = toDecimal(precision, scale, bytes)
+	case proto.MYSQL_TYPE_STRING:
+		var l uint
+		var s string
+		if length < 256 {
+			c.Get(&l, proto.Int1)
+		} else {
+			c.Get(&l, proto.Int2)
+		}
+		c.Get(&s, proto.StrVar, l)
+		r = s
+	case proto.MYSQL_TYPE_ENUM:
+		var l uint64
+		switch length {
+		case 1:
+			c.Get(&l, proto.Int1)
+		case 2:
+			c.Get(&l, proto.Int2)
+		case 4:
+			c.Get(&l, proto.Int4)
+		case 8:
+			panic(fmt.Sprintf("Enum too large"))
+		}
+		r = l
+
+	case proto.MYSQL_TYPE_SET:
+
 	default:
 		panic(fmt.Sprintf("Unsupport type %s meta %d", t, meta))
 	}
