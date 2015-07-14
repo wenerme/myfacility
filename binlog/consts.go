@@ -95,7 +95,7 @@ const (
 type BinlogEventFlag uint16
 
 const (
-	// 	gets unset in the FORMAT_DESCRIPTION_EVENT when the file gets closed to detect broken binlogs
+	//gets unset in the FORMAT_DESCRIPTION_EVENT when the file gets closed to detect broken binlogs
 	LOG_EVENT_BINLOG_IN_USE_F BinlogEventFlag = 1 << iota
 	//unused
 	LOG_EVENT_FORCED_ROTATE_F

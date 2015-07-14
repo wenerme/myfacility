@@ -237,6 +237,11 @@ func (r *BufReader) Get(values ...interface{}) {
 		//		spew.Dump("Get ", v, t)
 	}
 }
+
+type readablePack interface {
+	Read(Reader)
+}
+
 func (r *BufReader) GetType(v interface{}, t ProtoType) (n int, err error) {
 	val := reflect.ValueOf(v)
 	if !val.CanSet() {
@@ -244,6 +249,7 @@ func (r *BufReader) GetType(v interface{}, t ProtoType) (n int, err error) {
 			return 0, errors.New(fmt.Sprintf("Must use a addressable value instead of %T(%v)", v, v))
 		}
 	}
+
 	var buf []byte
 TYPE_SWITCH:
 	switch t {
@@ -364,7 +370,11 @@ TYPE_SWITCH:
 			goto CAN_NOT_GET
 		}
 	default:
-		goto CAN_NOT_GET
+		if p, ok := v.(readablePack); ok {
+			p.Read(r)
+		} else {
+			goto CAN_NOT_GET
+		}
 	}
 	return
 CAN_NOT_GET:

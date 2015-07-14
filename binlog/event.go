@@ -48,7 +48,8 @@ func (p *QueryEvent) Read(c proto.Reader) {
 		&n,
 		&p.Status, proto.StrVar, &n,
 		&p.Schema, proto.StrVar, &m,
-		&p.Query)
+		1, proto.IgnoreByte,
+		&p.Query, proto.StrEof)
 }
 func (p *QueryEvent) Type() EventType {
 	return QUERY_EVENT
@@ -80,7 +81,7 @@ func NewEventMap() map[EventType]interface{} {
 		DELETE_ROWS_EVENTv0:           nil,
 		WRITE_ROWS_EVENTv1:            &WriteRowsEventV1{},
 		UPDATE_ROWS_EVENTv1:           nil,
-		DELETE_ROWS_EVENTv1:           nil,
+		DELETE_ROWS_EVENTv1:           &DeleteRowsEventV1{},
 		INCIDENT_EVENT:                &IncidentEvent{},
 		HEARTBEAT_EVENT:               HeartbeatEvent,
 		IGNORABLE_EVENT:               nil,

@@ -6,7 +6,7 @@ import (
 )
 
 func TestReader(t *testing.T) {
-	f, err := os.Open("binlogdump.bin")
+	f, err := os.Open("mysql-bin.sakila")
 	if err != nil {
 		panic(err)
 	}
