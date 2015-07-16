@@ -257,7 +257,7 @@ func (r *BufReader) Get(values ...interface{}) {
 				kind := try
 				i++
 
-				val := reflect.ValueOf(v)
+				val := reflect.ValueOf(v).Elem()
 				if kind == val.Kind() {
 					r.readKind(v, kind)
 				} else {

@@ -130,7 +130,6 @@ func proxy(svr net.Conn, cli net.Conn) {
 			log.Info("Handle command %v", com.Type)
 			if log.IsEnabledFor(logging.DEBUG) {
 				r := &BufReader{Reader: bufio.NewReader(bytes.NewReader(com.Data))}
-				r.SetCap(sp.Cap())
 				cmd := commands[com.Type]
 				cmd.Read(r)
 				spew.Dump(cmd)

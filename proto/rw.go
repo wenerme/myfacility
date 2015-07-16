@@ -47,10 +47,6 @@ type Writer interface {
 	PutZero(int)
 }
 
-type BufWriter struct {
-	*bufio.Writer
-}
-
 // General protocol types
 // A unit for read write packet content
 type ProtoType int
@@ -76,6 +72,10 @@ const (
 
 type readablePack interface {
 	Read(Reader)
+}
+
+type BufWriter struct {
+	*bufio.Writer
 }
 
 func (w *BufWriter) Put(values ...interface{}) {
