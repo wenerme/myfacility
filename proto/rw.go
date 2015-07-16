@@ -16,8 +16,16 @@ Also can specify protocol type explicit
 
 // A reader used to read packet
 type Reader interface {
+	// Format
+	// Get(&value,&value,&value...)
+	// Get(&value,ProtoType)
+	// Get(&value,StrVar,n)
+	// Get(&value,StrVar,&n)
+	// Get(&value,Int,n)
+	// Get(&value,Int,&n)
+	// Get(n, IgnoreByte)
+	// Get(&value,reflect.Kind)
 	Get(...interface{})
-	GetType(interface{}, ProtoType) (int, error)
 	SkipBytes(int)
 	More() bool
 	HasCap(Capability) bool
@@ -29,8 +37,16 @@ type Reader interface {
 
 // A writer used to write packet
 type Writer interface {
+	// Format
+	// Pet(&value,&value,&value...)
+	// Pet(value,value,value...)
+	// Pet(&value,ProtoType)
+	// Pet(&value,StrVar,n)
+	// Pet(&value,StrVar,&n)
+	// Pet(&value,Int,n)
+	// Pet(&value,Int,&n)
+	// Pet(n, IgnoreByte)
 	Put(...interface{})
-	PutType(interface{}, ProtoType) (int, error)
 	PutZero(int)
 	HasCap(Capability) bool
 	Com() Command
@@ -239,7 +255,7 @@ func (r *BufReader) Get(values ...interface{}) {
 			}
 		}
 
-		_, err := r.GetType(v, t)
+		_, err := r.getType(v, t)
 		if err != nil {
 			panic(err)
 		}
@@ -251,7 +267,7 @@ type readablePack interface {
 	Read(Reader)
 }
 
-func (r *BufReader) GetType(v interface{}, t ProtoType) (n int, err error) {
+func (r *BufReader) getType(v interface{}, t ProtoType) (n int, err error) {
 	val := reflect.ValueOf(v)
 	if !val.CanSet() {
 		if val = val.Elem(); !val.CanSet() {
@@ -329,7 +345,7 @@ TYPE_SWITCH:
 		goto TYPE_SWITCH
 	case StrEnc:
 		var size uint32
-		_, err = r.GetType(&size, IntEnc)
+		_, err = r.getType(&size, IntEnc)
 		if err != nil {
 			break
 		}
@@ -667,4 +683,27 @@ func checkInt(v interface{}) (i int, ok bool) {
 		ok = false
 	}
 	return
+}
+
+func (r *BufReader) readKind(k reflect.Kind) {
+	switch k {
+	case reflect.Uint:
+	case reflect.Uint8:
+	case reflect.Uint16:
+	case reflect.Uint32:
+	case reflect.Uint64:
+	case reflect.Int:
+	case reflect.Int8:
+	case reflect.Int16:
+	case reflect.Int32:
+	case reflect.Int64:
+	case reflect.String:
+	case reflect.Float32:
+	case reflect.Float64:
+	}
+}
+
+func (r *BufReader) readType(t ProtoType) {
+	switch t {
+	}
 }

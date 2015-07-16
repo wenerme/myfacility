@@ -249,23 +249,6 @@ func readRow(tab *TableMapEvent, included bitSet, c proto.Reader) []interface{} 
 		}
 		// mysql-5.6.24 sql/log_event.cc log_event_print_value (line 1980)
 		t, meta, l := proto.ColumnType(tab.ColumnTypes[i]), tab.ColumnMetadata[i], 0
-		/*
-			 if (meta >= 256) {
-				int meta0 = meta >> 8, meta1 = meta & 0xFF;
-				if ((meta0 & 0x30) != 0x30) {
-					typeCode = meta0 | 0x30;
-					length = meta1 | (((meta0 & 0x30) ^ 0x30) << 4);
-				} else {
-					// mysql-5.6.24 sql/rpl_utility.h enum_field_types (line 278)
-					if (meta0 == ColumnType.ENUM.getCode() || meta0 == ColumnType.SET.getCode()) {
-						typeCode = meta0;
-					}
-					length = meta1;
-				}
-			} else {
-				length = meta;
-			}
-		*/
 		if t == proto.MYSQL_TYPE_STRING {
 			// big endian here
 			meta = (meta & 0xFF << 8) | (meta >> 8)
@@ -285,7 +268,6 @@ func readRow(tab *TableMapEvent, included bitSet, c proto.Reader) []interface{} 
 			} else {
 				l = int(meta)
 			}
-			// log.Info("Meet mysql string %v %v %v", t, meta, l)
 		}
 		row[i] = readCell(t, meta, l, c)
 	}
@@ -295,27 +277,36 @@ func readRow(tab *TableMapEvent, included bitSet, c proto.Reader) []interface{} 
 
 func readCell(t proto.ColumnType, meta uint, length int, c proto.Reader) interface{} {
 	var r interface{}
-	//	defer func() {
-	//		log.Info("Cell %v %v %v '%v'", t, meta, l, r)
-	//	}()
+
+	u, u8, u16, u32, u64 := uint(0), uint8(0), uint16(0), uint32(0), uint64(0)
+	_, _, _, _, _ = u, u8, u16, u32, u64
+	var b []byte
 	switch t {
+	// FIXME Make tiny short long longlong singed
 	// http://dev.mysql.com/doc/internals/en/binary-protocol-value.html
-	case proto.MYSQL_TYPE_LONGLONG:
-		var n uint64
-		c.Get(&n)
-		r = n
-	case proto.MYSQL_TYPE_LONG, proto.MYSQL_TYPE_INT24:
-		var n uint32
-		c.Get(&n)
-		r = n
-	case proto.MYSQL_TYPE_SHORT, proto.MYSQL_TYPE_YEAR:
-		var n uint16
-		c.Get(&n)
-		r = n
+	case proto.MYSQL_TYPE_BIT:
+		bitSetLength := (meta>>8)*8 + (meta & 0xFF)
+		c.Get(&b, proto.StrVar, (bitSetLength+7)>>3)
+		r = b
 	case proto.MYSQL_TYPE_TINY:
+		c.Get(&u8)
+		r = u8
+	case proto.MYSQL_TYPE_SHORT:
+		c.Get(&u16)
+		r = u16
+	case proto.MYSQL_TYPE_LONG:
+		c.Get(&u32)
+		r = u32
+	case proto.MYSQL_TYPE_LONGLONG:
+		c.Get(&u64)
+		r = u64
+	case proto.MYSQL_TYPE_INT24:
+		c.Get(&u, proto.Int3)
+		r = u
+	case proto.MYSQL_TYPE_YEAR:
 		var n uint8
 		c.Get(&n)
-		r = n
+		r = 1900 + int(n)
 	case proto.MYSQL_TYPE_DOUBLE:
 		var n uint64
 		c.Get(&n)
@@ -374,19 +365,10 @@ func readCell(t proto.ColumnType, meta uint, length int, c proto.Reader) interfa
 		}
 		r = s
 	case proto.MYSQL_TYPE_BLOB:
-		var l uint64
+		var l uint
 		var b []byte
-		switch meta {
-		case 1:
-			c.Get(&l, proto.Int1)
-		case 2:
-			c.Get(&l, proto.Int2)
-		case 4:
-			c.Get(&l, proto.Int4)
-		case 8:
-			panic(fmt.Sprintf("Blob too large"))
-		}
-		c.Get(&b, proto.StrVar, int(l))
+		c.Get(&l, proto.Int, meta,
+			&b, proto.StrVar, &l)
 		r = b
 	case proto.MYSQL_TYPE_NEWDECIMAL:
 		precision := int(meta & 0xFF)
@@ -406,21 +388,15 @@ func readCell(t proto.ColumnType, meta uint, length int, c proto.Reader) interfa
 		c.Get(&s, proto.StrVar, l)
 		r = s
 	case proto.MYSQL_TYPE_ENUM:
+		// int
 		var l uint64
-		switch length {
-		case 1:
-			c.Get(&l, proto.Int1)
-		case 2:
-			c.Get(&l, proto.Int2)
-		case 4:
-			c.Get(&l, proto.Int4)
-		case 8:
-			panic(fmt.Sprintf("Enum too large"))
-		}
+		c.Get(&l, proto.Int, length)
 		r = l
-
 	case proto.MYSQL_TYPE_SET:
-
+		// long
+		var l uint64
+		c.Get(&l, proto.Int, length)
+		r = l
 	default:
 		panic(fmt.Sprintf("Unsupport type %s meta %d", t, meta))
 	}
