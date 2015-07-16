@@ -8,11 +8,11 @@ import (
 	"testing"
 )
 
-func TestReaderWithKind(t *testing.T) {
+func TestReaderWriterWithKind(t *testing.T) {
 	assert := assert.New(t)
 	buf := bytes.NewBufferString("")
 	r := BufReader{bufio.NewReader(buf)}
-
+	w := BufWriter{bufio.NewWriter(buf)}
 	tests := []struct {
 		data []byte
 		v    interface{}
@@ -31,6 +31,10 @@ func TestReaderWithKind(t *testing.T) {
 	for _, t := range tests {
 		buf.Write(t.data)
 		var i interface{}
+		r.Get(&i, t.k)
+		assert.EqualValues(i, t.v)
+		w.Put(i)
+		w.Flush()
 		r.Get(&i, t.k)
 		assert.EqualValues(i, t.v)
 	}
