@@ -12,12 +12,12 @@ type Packet struct {
 	Payload    []byte
 }
 
-func (p *Packet) Read(c Reader) {
+func (p *Packet) Read(c Proto) {
 	var len uint
 	c.Get(&len, &p.SequenceId, &p.Payload, StrVar, int(len))
 }
 
-func (p *Packet) Write(c Writer) {
+func (p *Packet) Write(c Proto) {
 	c.Put(uint(len(p.Payload)), p.SequenceId, p.Payload, StrEof)
 }
 
@@ -37,7 +37,7 @@ type Handshake struct {
 	AuthPluginName  string
 }
 
-func (p *Handshake) Read(c Reader) {
+func (p *Handshake) Read(c Proto) {
 	c.Get(
 		&p.ProtocolVersion,
 		&p.ServerVersion, StrNul,
@@ -45,7 +45,7 @@ func (p *Handshake) Read(c Reader) {
 		&p.Challenge1, StrVar, 8,
 	)
 	//  1              [00] filler
-	c.SkipBytes(1)
+	c.Get(1, IgnoreByte)
 	var t uint16
 	c.Get(&t)
 	p.Capability = Capability(t)
@@ -59,17 +59,17 @@ func (p *Handshake) Read(c Reader) {
 		if cap.Has(CLIENT_PLUGIN_AUTH) {
 			c.Get(&authPluginDataLen)
 		} else {
-			c.SkipBytes(1)
+			c.Get(1, IgnoreByte)
 		}
 
 		//string[10]     reserved (all [00])
-		c.SkipBytes(10)
+		c.Get(10, IgnoreByte)
 
 		if cap.Has(CLIENT_SECURE_CONNECTION) {
 			// ($len=MAX(13, length of auth-plugin-data - 8))
 			// -1 to strip the last \x00 char
 			c.Get(&p.Challenge2, StrVar, int(math.Max(13, float64(authPluginDataLen)-8))-1)
-			c.SkipBytes(1) // waste the \x00 char
+			c.Get(1, IgnoreByte) // waste the \x00 char
 		}
 
 		if cap.Has(CLIENT_PLUGIN_AUTH) {
@@ -78,7 +78,7 @@ func (p *Handshake) Read(c Reader) {
 	}
 }
 
-func (p *Handshake) Write(c Writer) {
+func (p *Handshake) Write(c Proto) {
 	c.Put(
 		&p.ProtocolVersion,
 		&p.ServerVersion, StrNul,
@@ -89,22 +89,22 @@ func (p *Handshake) Write(c Writer) {
 		&p.CharacterSet, &p.Status,
 		uint16(p.Capability>>16), // upper
 	)
-	cap := Capability(p.Capability)
-	if cap.Has(CLIENT_PLUGIN_AUTH) {
+	ca := Capability(p.Capability)
+	if ca.Has(CLIENT_PLUGIN_AUTH) {
 		c.Put(uint8(len(p.Challenge2) + 8 + 1))
 	} else {
 		c.PutZero(1)
 	}
 
 	//string[10]     reserved (all [00])
-	c.PutZero(10)
+	c.Put(10, IgnoreByte)
 
-	if cap.Has(CLIENT_SECURE_CONNECTION) {
+	if ca.Has(CLIENT_SECURE_CONNECTION) {
 		c.Put(p.Challenge2, StrNul)
 		//		c.PutZero(1)
 	}
 
-	if cap.Has(CLIENT_PLUGIN_AUTH) {
+	if ca.Has(CLIENT_PLUGIN_AUTH) {
 		c.Put(&p.AuthPluginName, StrNul)
 	}
 }
@@ -127,7 +127,7 @@ type HandshakeResponse struct {
 	Attributes     map[string]string
 }
 
-func (p *HandshakeResponse) Read(c Reader) {
+func (p *HandshakeResponse) Read(c Proto) {
 	c.Get(&p.Capability, &p.MaxPacketSize, &p.CharacterSet, Int1)
 	//  string[23]     reserved (all [0])
 	c.Get(23, IgnoreByte, &p.Username, StrNul)
@@ -160,7 +160,7 @@ func (p *HandshakeResponse) Read(c Reader) {
 	}
 }
 
-func (p *HandshakeResponse) Write(c Writer) {
+func (p *HandshakeResponse) Write(c Proto) {
 	c.Put(&p.Capability, &p.MaxPacketSize, &p.CharacterSet, Int1)
 	//  string[23]     reserved (all [0])
 	c.Put(23, IgnoreByte, &p.Username, StrNul)

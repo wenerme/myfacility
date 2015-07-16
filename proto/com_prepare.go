@@ -85,10 +85,10 @@ type ComStmtPrepare struct {
 	Query string
 }
 
-func (p *ComStmtPrepare) Read(c Reader) {
+func (p *ComStmtPrepare) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.Query, StrEof)
 }
-func (p *ComStmtPrepare) Write(c Writer) {
+func (p *ComStmtPrepare) Write(c Proto) {
 	c.Put(COM_STMT_PREPARE, p.Query, StrEof)
 }
 func (p *ComStmtPrepare) Type() Command {
@@ -105,7 +105,7 @@ type ComStmtExecute struct {
 	OK                 *ComStmtPrepareOK
 }
 
-func (p *ComStmtExecute) Read(c Reader) {
+func (p *ComStmtExecute) Read(c Proto) {
 	c.Get(1, IgnoreByte,
 		&p.StmtId, &p.Flags,
 		4, IgnoreByte, //4 iteration-count always 1
@@ -125,7 +125,7 @@ func (p *ComStmtExecute) Read(c Reader) {
 		}
 	}
 }
-func (p *ComStmtExecute) Write(c Writer) {
+func (p *ComStmtExecute) Write(c Proto) {
 	c.Put(COM_STMT_EXECUTE, p.StmtId, p.Flags, uint32(1))
 	params := len(p.OK.Params)
 	if params > 0 {
@@ -150,10 +150,10 @@ type ComStmtSendLongData struct {
 	Data    []byte
 }
 
-func (p *ComStmtSendLongData) Read(c Reader) {
+func (p *ComStmtSendLongData) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.StmtId, &p.ParamId, &p.Data, StrEof)
 }
-func (p *ComStmtSendLongData) Write(c Writer) {
+func (p *ComStmtSendLongData) Write(c Proto) {
 	c.Put(COM_STMT_SEND_LONG_DATA, &p.StmtId, &p.ParamId, &p.Data, StrEof)
 }
 func (p *ComStmtSendLongData) Type() Command {
@@ -164,10 +164,10 @@ type ComStmtClose struct {
 	StmtId uint32
 }
 
-func (p *ComStmtClose) Read(c Reader) {
+func (p *ComStmtClose) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.StmtId)
 }
-func (p *ComStmtClose) Write(c Writer) {
+func (p *ComStmtClose) Write(c Proto) {
 	c.Put(COM_STMT_CLOSE, p.StmtId)
 }
 func (p *ComStmtClose) Type() Command {
@@ -178,10 +178,10 @@ type ComStmtReset struct {
 	StmtId uint32
 }
 
-func (p *ComStmtReset) Read(c Reader) {
+func (p *ComStmtReset) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.StmtId)
 }
-func (p *ComStmtReset) Write(c Writer) {
+func (p *ComStmtReset) Write(c Proto) {
 	c.Put(COM_STMT_RESET, p.StmtId)
 }
 func (p *ComStmtReset) Type() Command {
@@ -193,10 +193,10 @@ type ComStmtFetch struct {
 	Rows   uint32
 }
 
-func (p *ComStmtFetch) Read(c Reader) {
+func (p *ComStmtFetch) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.StmtId, &p.Rows)
 }
-func (p *ComStmtFetch) Write(c Writer) {
+func (p *ComStmtFetch) Write(c Proto) {
 	c.Put(COM_STMT_FETCH, p.StmtId, p.Rows)
 }
 func (p *ComStmtFetch) Type() Command {

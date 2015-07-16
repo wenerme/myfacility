@@ -1,8 +1,9 @@
 package proto
+
 import (
-	"testing"
 	"bytes"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestPacketCoder(t *testing.T) {
@@ -17,7 +18,7 @@ func TestPacketCoder(t *testing.T) {
 	buf := NewBuffer(bytes.NewBuffer(data), nil)
 	n, err := buf.RecvPacket()
 	assert.NoError(err)
-	assert.EqualValues(1, n)
+	assert.EqualValues(5, n)
 	assert.EqualValues(2, buf.Seq())
 
 	assert.True(buf.More())

@@ -20,10 +20,10 @@ var ComDaemon = comPack(COM_DAEMON)
 
 type comPack Command
 
-func (p comPack) Read(c Reader) {
-	c.SkipBytes(1)
+func (p comPack) Read(c Proto) {
+	c.Get(1, IgnoreByte)
 }
-func (p comPack) Write(c Writer) {
+func (p comPack) Write(c Proto) {
 	c.Put(p)
 }
 func (p comPack) Type() Command {
@@ -37,11 +37,10 @@ type ComQuery struct {
 	Query string
 }
 
-func (p *ComQuery) Read(c Reader) {
-	c.SkipBytes(1)
-	c.Get(&p.Query, StrEof)
+func (p *ComQuery) Read(c Proto) {
+	c.Get(1, IgnoreByte, &p.Query, StrEof)
 }
-func (p *ComQuery) Write(c Writer) {
+func (p *ComQuery) Write(c Proto) {
 	c.Put(COM_QUERY, &p.Query, StrEof)
 }
 func (p *ComQuery) Type() Command {
@@ -52,10 +51,10 @@ type ComInitDb struct {
 	Schema string
 }
 
-func (p *ComInitDb) Read(c Reader) {
+func (p *ComInitDb) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.Schema, StrEof)
 }
-func (p *ComInitDb) Write(c Writer) {
+func (p *ComInitDb) Write(c Proto) {
 	c.Put(p.Type(), &p.Schema, StrEof)
 }
 func (p *ComInitDb) Type() Command {
@@ -66,10 +65,10 @@ type ComCreateDb struct {
 	Schema string
 }
 
-func (p *ComCreateDb) Read(c Reader) {
+func (p *ComCreateDb) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.Schema, StrEof)
 }
-func (p *ComCreateDb) Write(c Writer) {
+func (p *ComCreateDb) Write(c Proto) {
 	c.Put(p.Type(), &p.Schema, StrEof)
 }
 func (p *ComCreateDb) Type() Command {
@@ -80,10 +79,10 @@ type ComSetOption struct {
 	Option uint16
 }
 
-func (p *ComSetOption) Read(c Reader) {
+func (p *ComSetOption) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.Option)
 }
-func (p *ComSetOption) Write(c Writer) {
+func (p *ComSetOption) Write(c Proto) {
 	c.Put(COM_SET_OPTION, &p.Option)
 }
 func (p *ComSetOption) Type() Command {
@@ -99,9 +98,9 @@ type ComChangeUser struct {
 	Attributes     map[string]string
 }
 
-func (p *ComChangeUser) Read(c Reader) {
-	c.SkipBytes(1)
-	c.Get(&p.Username, StrNul)
+func (p *ComChangeUser) Read(c Proto) {
+
+	c.Get(1, IgnoreByte, &p.Username, StrNul)
 	if c.HasCap(CLIENT_SECURE_CONNECTION) {
 		var n uint8
 		c.Get(&n)
@@ -129,7 +128,7 @@ func (p *ComChangeUser) Read(c Reader) {
 	}
 }
 
-func (p *ComChangeUser) Write(c Writer) {
+func (p *ComChangeUser) Write(c Proto) {
 	c.Put(COM_CHANGE_USER, p.Username, StrNul)
 	if c.HasCap(CLIENT_SECURE_CONNECTION) {
 		c.Put(uint8(len(p.AuthResponse)), p.AuthResponse, StrEof)
@@ -165,11 +164,10 @@ type ComDropDb struct {
 	Schema string
 }
 
-func (p *ComDropDb) Read(c Reader) {
-	c.SkipBytes(1)
-	c.Get(&p.Schema, StrEof)
+func (p *ComDropDb) Read(c Proto) {
+	c.Get(1, IgnoreByte, &p.Schema, StrEof)
 }
-func (p *ComDropDb) Write(c Writer) {
+func (p *ComDropDb) Write(c Proto) {
 	c.Put(COM_DROP_DB, &p.Schema, StrEof)
 }
 func (p *ComDropDb) Type() Command {
@@ -180,11 +178,10 @@ type ComRefresh struct {
 	Subcommand uint8
 }
 
-func (p *ComRefresh) Read(c Reader) {
-	c.SkipBytes(1)
-	c.Get(&p.Subcommand)
+func (p *ComRefresh) Read(c Proto) {
+	c.Get(1, IgnoreByte, &p.Subcommand)
 }
-func (p *ComRefresh) Write(c Writer) {
+func (p *ComRefresh) Write(c Proto) {
 	c.Put(COM_REFRESH, &p.Subcommand)
 }
 func (p *ComRefresh) Type() Command {
@@ -195,13 +192,13 @@ type ComShutdown struct {
 	ShutdownType uint8
 }
 
-func (p *ComShutdown) Read(c Reader) {
-	c.SkipBytes(1)
+func (p *ComShutdown) Read(c Proto) {
+	c.Get(1, IgnoreByte)
 	if c.More() {
 		c.Get(&p.ShutdownType)
 	}
 }
-func (p *ComShutdown) Write(c Writer) {
+func (p *ComShutdown) Write(c Proto) {
 	// TODO Define shutdown type
 	c.Put(COM_SHUTDOWN, &p.ShutdownType)
 }
@@ -213,11 +210,10 @@ type ComProcessKill struct {
 	ProcessId uint32
 }
 
-func (p *ComProcessKill) Read(c Reader) {
-	c.SkipBytes(1)
-	c.Get(&p.ProcessId)
+func (p *ComProcessKill) Read(c Proto) {
+	c.Get(1, IgnoreByte, &p.ProcessId)
 }
-func (p *ComProcessKill) Write(c Writer) {
+func (p *ComProcessKill) Write(c Proto) {
 	c.Put(COM_PROCESS_KILL, &p.ProcessId)
 }
 func (p *ComProcessKill) Type() Command {
@@ -229,11 +225,10 @@ type ComFieldList struct {
 	Field string
 }
 
-func (p *ComFieldList) Read(c Reader) {
-	c.SkipBytes(1)
-	c.Get(&p.Table, StrNul, &p.Field, StrEof)
+func (p *ComFieldList) Read(c Proto) {
+	c.Get(1, IgnoreByte, &p.Table, StrNul, &p.Field, StrEof)
 }
-func (p *ComFieldList) Write(c Writer) {
+func (p *ComFieldList) Write(c Proto) {
 	c.Put(p.Type(), &p.Table, StrNul, &p.Field, StrEof)
 }
 func (p *ComFieldList) Type() Command {
@@ -245,11 +240,11 @@ type ComPack struct {
 	Data []byte
 }
 
-func (p *ComPack) Read(c Reader) {
+func (p *ComPack) Read(c Proto) {
 	c.Get(&p.Data, StrEof)
 	p.Type = Command(p.Data[0])
 }
-func (p *ComPack) Write(c Writer) {
+func (p *ComPack) Write(c Proto) {
 	c.Put(&p.Data, StrEof)
 }
 

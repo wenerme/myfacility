@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"runtime/debug"
 	"testing"
 )
@@ -58,7 +59,7 @@ func assertCodec(data []byte, p Pack, c Capability, args ...interface{}) {
 			fmt.Printf("Origin data:\n%s\n", hex.Dump(data))
 			fmt.Printf("Write data:\n%s\n", hex.Dump(write))
 			fmt.Printf("Payload :\n%s\n", hex.Dump(payload))
-			fmt.Printf("Packet:\n%#v\n", p)
+			spew.Dump(p)
 			fmt.Println(string(debug.Stack()))
 			if t != nil {
 				t.Fatal(recover())

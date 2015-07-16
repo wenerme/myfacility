@@ -26,13 +26,9 @@ type Reader interface {
 	// Get(n, IgnoreByte)
 	// Get(&value,reflect.Kind)
 	Get(...interface{})
-	SkipBytes(int)
 	More() bool
-	HasCap(Capability) bool
 	Peek(int) ([]byte, error)
 	PeekByte() (byte, error)
-	Com() Command
-	SetCom(Command)
 }
 
 // A writer used to write packet
@@ -48,9 +44,6 @@ type Writer interface {
 	// Pet(n, IgnoreByte)
 	Put(...interface{})
 	PutZero(int)
-	HasCap(Capability) bool
-	Com() Command
-	SetCom(Command)
 }
 
 type BufReader struct {
@@ -476,6 +469,13 @@ func (w *BufWriter) Put(values ...interface{}) {
 					w.Write([]byte(v.(string))[0:n])
 				case []byte:
 					w.Write(v.([]byte)[0:n])
+				case *string:
+					w.Write([]byte(*(v.(*string)))[0:n])
+				case *[]byte:
+					w.Write((*(v.(*[]byte)))[0:n])
+				default:
+					panic(errors.New(fmt.Sprintf("Can not handle type StrVar %T(%v)", v, v)))
+
 				}
 			} else {
 				panic(errors.New("Type StrVar need a int type size"))

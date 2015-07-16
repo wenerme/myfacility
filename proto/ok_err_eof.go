@@ -9,13 +9,13 @@ type EOFPack struct {
 	Status   Status
 }
 
-func (p *EOFPack) Read(c Reader) {
+func (p *EOFPack) Read(c Proto) {
 	c.Get(&p.Header)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Get(&p.Warnings, &p.Status)
 	}
 }
-func (p *EOFPack) Write(c Writer) {
+func (p *EOFPack) Write(c Proto) {
 	c.Put(&p.Header)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Put(&p.Warnings, &p.Status)
@@ -31,14 +31,14 @@ type ERRPack struct {
 	ErrorMessage   string
 }
 
-func (p *ERRPack) Read(c Reader) {
+func (p *ERRPack) Read(c Proto) {
 	c.Get(&p.Header, &p.ErrorCode)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Get(&p.SQLStateMarker, StrVar, 1, &p.SQLState, StrVar, 5)
 	}
 	c.Get(&p.ErrorMessage, StrEof)
 }
-func (p *ERRPack) Write(c Writer) {
+func (p *ERRPack) Write(c Proto) {
 	c.Put(&p.Header, &p.ErrorCode)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Put(&p.SQLStateMarker, StrVar, 1, &p.SQLState, StrVar, 5)
@@ -60,7 +60,7 @@ type OKPack struct {
 	SessionState SessionState
 }
 
-func (p *OKPack) Read(c Reader) {
+func (p *OKPack) Read(c Proto) {
 	c.Get(&p.Header, &p.AffectedRows, IntEnc, &p.LastInsertId, IntEnc)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Get(&p.Warnings, &p.Status)
@@ -77,7 +77,7 @@ func (p *OKPack) Read(c Reader) {
 		c.Get(&p.Info, StrEof)
 	}
 }
-func (p *OKPack) Write(c Writer) {
+func (p *OKPack) Write(c Proto) {
 	c.Put(&p.Header, &p.AffectedRows, IntEnc, &p.LastInsertId, IntEnc)
 	if c.HasCap(CLIENT_PROTOCOL_41) {
 		c.Put(&p.Warnings, &p.Status)

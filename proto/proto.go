@@ -2,22 +2,19 @@ package proto
 
 type (
 	Pack interface {
-		Read(Reader)
-		Write(Writer)
+		Read(Proto)
+		Write(Proto)
 	}
 
 	Proto interface {
 		/* read */
 		Get(...interface{})
-		GetType(interface{}, ProtoType) (int, error)
-		SkipBytes(int)
 		Peek(int) ([]byte, error)
 		PeekByte() (byte, error)
 		More() bool
 
 		/* write */
 		Put(...interface{})
-		PutType(interface{}, ProtoType) (int, error)
 		PutZero(int)
 
 		/* pack */

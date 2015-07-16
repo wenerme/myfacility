@@ -5,11 +5,11 @@ type ComTableDump struct {
 	Table    string
 }
 
-func (p *ComTableDump) Read(c Reader) {
+func (p *ComTableDump) Read(c Proto) {
 	var n uint8
 	c.Get(1, IgnoreByte, &n, &p.Database, StrVar, &n, &n, &p.Table, StrVar, &n)
 }
-func (p *ComTableDump) Write(c Writer) {
+func (p *ComTableDump) Write(c Proto) {
 	c.Put(COM_TABLE_DUMP, uint8(len(p.Database)), p.Database, uint8(len(p.Table)), p.Table)
 }
 func (p *ComTableDump) Type() Command {
@@ -23,10 +23,10 @@ type ComBinlogDump struct {
 	BinlogFilename string
 }
 
-func (p *ComBinlogDump) Read(c Reader) {
+func (p *ComBinlogDump) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.BinlogPos, &p.Flags, &p.ServerId, &p.BinlogFilename, StrEof)
 }
-func (p *ComBinlogDump) Write(c Writer) {
+func (p *ComBinlogDump) Write(c Proto) {
 	c.Put(COM_BINLOG_DUMP, &p.BinlogPos, &p.Flags, &p.ServerId, &p.BinlogFilename, StrEof)
 }
 func (p *ComBinlogDump) Type() Command {
@@ -53,7 +53,7 @@ type ComBinlogDumpGtid struct {
 	Data           []byte
 }
 
-func (p *ComBinlogDumpGtid) Read(c Reader) {
+func (p *ComBinlogDumpGtid) Read(c Proto) {
 	var n uint32
 	c.Get(1, IgnoreByte,
 		&p.Flags,
@@ -64,7 +64,7 @@ func (p *ComBinlogDumpGtid) Read(c Reader) {
 		c.Get(&n, &p.Data, StrVar, &n)
 	}
 }
-func (p *ComBinlogDumpGtid) Write(c Writer) {
+func (p *ComBinlogDumpGtid) Write(c Proto) {
 	c.Put(COM_BINLOG_DUMP_GTID,
 		&p.Flags,
 		&p.ServerId,
@@ -88,7 +88,7 @@ type ComRegisterSlave struct {
 	MasterId        uint32
 }
 
-func (p *ComRegisterSlave) Read(c Reader) {
+func (p *ComRegisterSlave) Read(c Proto) {
 	var n uint8
 	c.Get(
 		1, IgnoreByte,
@@ -101,7 +101,7 @@ func (p *ComRegisterSlave) Read(c Reader) {
 		&p.MasterId,
 	)
 }
-func (p *ComRegisterSlave) Write(c Writer) {
+func (p *ComRegisterSlave) Write(c Proto) {
 	c.Put(
 		&p.ServerId,
 		uint8(len(p.SlaveHostname)), &p.SlaveHostname, StrEof,

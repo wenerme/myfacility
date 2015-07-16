@@ -17,7 +17,7 @@ type ColumnDefinition struct {
 	DefaultValues *string
 }
 
-func (p *ColumnDefinition) Read(c Reader) {
+func (p *ColumnDefinition) Read(c Proto) {
 	c.Get(&p.Catalog,
 		&p.Schema,
 		&p.Table,
@@ -30,7 +30,7 @@ func (p *ColumnDefinition) Read(c Reader) {
 		&p.Type,
 		&p.Flags,
 		&p.Decimals)
-	c.SkipBytes(2) // filter
+	c.Get(2, IgnoreByte) // filter
 
 	if c.Com() == COM_FIELD_LIST {
 		var n uint
@@ -45,7 +45,7 @@ func (p *ColumnDefinition) Read(c Reader) {
 
 	}
 }
-func (p *ColumnDefinition) Write(c Writer) {
+func (p *ColumnDefinition) Write(c Proto) {
 	c.Put(&p.Catalog,
 		&p.Schema,
 		&p.Table,
@@ -161,7 +161,7 @@ func (p *QueryResponse) Read(c Proto) {
 				panic(err)
 			}
 			if b == 0xfb {
-				c.SkipBytes(1)
+				c.Get(1, IgnoreByte)
 				continue
 			}
 			var s string
