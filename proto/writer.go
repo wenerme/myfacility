@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"github.com/spacemonkeygo/errors"
+	"io"
 	"reflect"
 )
 
@@ -25,8 +26,7 @@ func (w *BufWriter) Put(values ...interface{}) {
 				switch pt {
 				case IgnoreByte:
 					if n, ok := checkInt(v); ok {
-						bytes := make([]byte, n)
-						_, err := w.Write(bytes)
+						_, err := io.CopyN(w, ZeroReader, int64(n))
 						if err != nil {
 							panic(err)
 						}
@@ -50,8 +50,8 @@ func (w *BufWriter) Put(values ...interface{}) {
 							w.Write((*(v.(*[]byte)))[0:n])
 						default:
 							panic(errors.New(fmt.Sprintf("Can not handle type StrVar %T(%v)", v, v)))
-
 						}
+						continue
 					}
 					panic(errors.New("Type StrVar need a int type size"))
 				case Int:
@@ -80,8 +80,7 @@ func (w *BufWriter) Put(values ...interface{}) {
 					}
 					panic(errors.New("Type Int need a size"))
 				}
-
-				w.putByType(v, pt)
+				w.mustPutByType(v, pt)
 				continue
 			} else if try, ok := values[i+1].(reflect.Kind); ok {
 				// With kind
@@ -93,13 +92,16 @@ func (w *BufWriter) Put(values ...interface{}) {
 
 		// Normal
 		switch v.(type) {
-		case *string, *[]byte:
-			w.putByType(v, StrEnc)
-		case *uint:
-			w.putByType(v, IntEnc)
+		case *string, *[]byte, string, []byte:
+			w.mustPutByType(v, StrEnc)
+		case *uint, uint:
+			w.mustPutByType(v, IntEnc)
 		case *int:
 			i := uint(*v.(*int))
-			w.putByType(i, IntEnc)
+			w.mustPutByType(i, IntEnc)
+		case int:
+			i := uint(v.(int))
+			w.mustPutByType(i, IntEnc)
 		default:
 			err := binary.Write(w, binary.LittleEndian, v)
 			if err != nil {
@@ -115,6 +117,13 @@ func (w *BufWriter) PutZero(n int) {
 			panic(err)
 		}
 	}
+}
+func (w *BufWriter) mustPutByType(v interface{}, t ProtoType) (n int) {
+	n, err := w.putByType(v, t)
+	if err != nil {
+		panic(err)
+	}
+	return n
 }
 func (w *BufWriter) putByType(v interface{}, t ProtoType) (n int, err error) {
 	val := reflect.ValueOf(v)
@@ -175,38 +184,16 @@ TYPE_SWITCH:
 		}
 		goto TYPE_SWITCH
 	case StrEnc:
-		var bytes []byte
-		switch v.(type) {
-		case string:
-			bytes = []byte(v.(string))
-		case []byte:
-			bytes = v.([]byte)
-		default:
-			goto CAN_NOT_PUT
-		}
+		bytes := mustBytes(v)
 		if n, err = w.putByType(uint64(len(bytes)), IntEnc); err == nil {
-			writeed := n
+			write := n
 			n, err = w.Write(bytes)
-			n += writeed
+			n += write
 		}
-	case StrEof, StrVar:
-		switch v.(type) {
-		case string:
-			n, err = w.Write([]byte(v.(string)))
-		case []byte:
-			n, err = w.Write(v.([]byte))
-		default:
-			goto CAN_NOT_PUT
-		}
+	case StrEof:
+		n, err = w.Write(mustBytes(v))
 	case StrNul:
-		switch v.(type) {
-		case string:
-			n, err = w.Write([]byte(v.(string)))
-		case []byte:
-			n, err = w.Write(v.([]byte))
-		default:
-			goto CAN_NOT_PUT
-		}
+		n, err = w.Write(mustBytes(v))
 		if err == nil {
 			err = w.WriteByte(0)
 			n++
@@ -218,4 +205,19 @@ TYPE_SWITCH:
 CAN_NOT_PUT:
 	err = errors.New(fmt.Sprintf("Can not put type %v", t))
 	return
+}
+
+func mustBytes(v interface{}) []byte {
+	switch v.(type) {
+	case string:
+		return []byte(v.(string))
+	case []byte:
+		return v.([]byte)
+	case *string:
+		return []byte(*v.(*string))
+	case *[]byte:
+		return *v.(*[]byte)
+	default:
+		panic(errors.New(fmt.Sprintf("Can not convert %T to []byte", v)))
+	}
 }

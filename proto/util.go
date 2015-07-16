@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"github.com/op/go-logging"
+	"io"
 	"os"
 	"regexp"
 	"strings"
@@ -58,3 +59,44 @@ func DecodeDump(dump string) (data []byte) {
 	}
 	return buf.Bytes()
 }
+
+type zeroReader int
+
+func (zeroReader) WriteTo(w io.Writer) (n int64, err error) {
+	if bw, ok := w.(io.ByteWriter); ok {
+		for {
+			err = bw.WriteByte(0)
+			if err == nil {
+				n++
+			} else if err == io.EOF {
+				err = nil
+				return
+			} else {
+				return
+			}
+		}
+	} else {
+		b := []byte{0}
+		for {
+			_, err = w.Write(b)
+			if err == nil {
+				n++
+			} else if err == io.EOF {
+				err = nil
+				return
+			} else {
+				return
+			}
+		}
+	}
+	return
+}
+func (zeroReader) Read(p []byte) (n int, err error) {
+	for i := range p {
+		p[i] = 0
+	}
+	return len(p), nil
+}
+
+var _ io.WriterTo = zeroReader(0)
+var ZeroReader io.Reader = zeroReader(0)

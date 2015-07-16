@@ -45,9 +45,10 @@ func (p *ERRPack) Write(c Proto) {
 	}
 	c.Put(&p.ErrorMessage, StrEof)
 }
-func (p ERRPack) Error() string {
-	return string(p.ErrorMessage)
-}
+
+//func (p ERRPack) Error() string {
+//	return string(p.ErrorMessage)
+//}
 
 // http://dev.mysql.com/doc/internals/en/packet-OK_Packet.html
 type OKPack struct {
