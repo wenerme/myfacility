@@ -66,42 +66,70 @@ TYPE_SWITCH:
 			break
 		}
 		n = 1
-		val.SetUint(uint64(b))
+		if val.Kind() == reflect.Interface {
+			val.Set(reflect.ValueOf(b))
+		} else {
+			val.SetUint(uint64(b))
+		}
 	case Int2:
 		buf = make([]byte, 2)
 		n, err = io.ReadFull(r, buf)
 		if err != nil {
 			break
 		}
-		val.SetUint(uint64(buf[0]) | uint64(buf[1])<<8)
+		if val.Kind() == reflect.Interface {
+			val.Set(reflect.ValueOf(uint16(buf[0]) | uint16(buf[1])<<8))
+		} else {
+			val.SetUint(uint64(buf[0]) | uint64(buf[1])<<8)
+		}
 	case Int3:
 		buf = make([]byte, 3)
 		n, err = io.ReadFull(r, buf)
 		if err != nil {
 			break
 		}
-		val.SetUint(uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16)
+		i := uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16
+		if val.Kind() == reflect.Interface {
+			val.Set(reflect.ValueOf(uint32(i)))
+		} else {
+			val.SetUint(i)
+		}
 	case Int4:
 		buf = make([]byte, 4)
 		n, err = io.ReadFull(r, buf)
 		if err != nil {
 			break
 		}
-		val.SetUint(uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24)
+		i := uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24
+		if val.Kind() == reflect.Interface {
+			val.Set(reflect.ValueOf(uint32(i)))
+		} else {
+			val.SetUint(i)
+		}
 	case Int6:
 		buf = make([]byte, 6)
 		n, err = io.ReadFull(r, buf)
 		if err != nil {
 			break
 		}
-		val.SetUint(uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 | uint64(buf[4])<<32 | uint64(buf[5])<<40)
+		i := uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 | uint64(buf[4])<<32 | uint64(buf[5])<<40
+		if val.Kind() == reflect.Interface {
+			val.Set(reflect.ValueOf(i))
+		} else {
+			val.SetUint(i)
+		}
 	case Int8:
 		buf = make([]byte, 8)
 		n, err = io.ReadFull(r, buf)
 		if err != nil {
 			break
 		}
-		val.SetUint(uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 | uint64(buf[4])<<32 | uint64(buf[5])<<40 | uint64(buf[6])<<48 | uint64(buf[7])<<56)
+		i := uint64(buf[0]) | uint64(buf[1])<<8 | uint64(buf[2])<<16 | uint64(buf[3])<<24 | uint64(buf[4])<<32 | uint64(buf[5])<<40 | uint64(buf[6])<<48 | uint64(buf[7])<<56
+		if val.Kind() == reflect.Interface {
+			val.Set(reflect.ValueOf(i))
+		} else {
+			val.SetUint(i)
+		}
 	case IntEnc:
 		i, e := r.ReadByte()
 		if e != nil {
@@ -110,7 +138,11 @@ TYPE_SWITCH:
 		}
 		if i <= 251 {
 			n = 1
-			val.SetUint(uint64(i))
+			if val.Kind() == reflect.Interface {
+				val.Set(reflect.ValueOf(i))
+			} else {
+				val.SetUint(uint64(i))
+			}
 			break
 		}
 		switch i {
@@ -138,6 +170,8 @@ TYPE_SWITCH:
 			*v.(*string) = string(bytes)
 		case *[]byte:
 			*v.(*[]byte) = bytes
+		case *interface{}:
+			*v.(*interface{}) = string(bytes)
 		default:
 			goto CAN_NOT_GET
 		}
@@ -153,6 +187,8 @@ TYPE_SWITCH:
 			*v.(*string) = string(bytes)
 		case *[]byte:
 			*v.(*[]byte) = bytes
+		case *interface{}:
+			*v.(*interface{}) = string(bytes)
 		default:
 			goto CAN_NOT_GET
 		}
@@ -169,6 +205,8 @@ TYPE_SWITCH:
 			*v.(*string) = string(bytes)
 		case *[]byte:
 			*v.(*[]byte) = bytes
+		case *interface{}:
+			*v.(*interface{}) = string(bytes)
 		default:
 			goto CAN_NOT_GET
 		}

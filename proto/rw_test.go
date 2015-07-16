@@ -39,3 +39,35 @@ func TestReaderWriterWithKind(t *testing.T) {
 		assert.EqualValues(i, t.v)
 	}
 }
+func TestReaderWriterWithType(t *testing.T) {
+	assert := assert.New(t)
+	buf := bytes.NewBufferString("")
+	r := BufReader{bufio.NewReader(buf)}
+	w := BufWriter{bufio.NewWriter(buf)}
+	tests := []struct {
+		v interface{}
+		t ProtoType
+	}{
+		{uint8(1), Int1},
+		{uint16(1), Int2},
+		{uint32(1), Int3},
+		{uint32(1), Int4},
+		{uint64(1), Int6},
+		{uint64(1), Int8},
+		{uint64(1), IntEnc},
+		{"ABC", StrEof},
+		{"DEF", StrNul},
+		{"GHI", StrEnc},
+		{[]byte{0xa, 0xb, 0xc}, StrEof},
+		{[]byte{0xa, 0xb, 0xc}, StrNul},
+		{[]byte{0xa, 0xb, 0xc}, StrEnc},
+	}
+	var i interface{}
+	for _, t := range tests {
+		w.Put(t.v, t.t)
+		w.Flush()
+		r.Get(&i, t.t)
+		assert.EqualValues(t.v, i)
+		assert.Equal(0, buf.Len())
+	}
+}
