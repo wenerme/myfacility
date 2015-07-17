@@ -41,11 +41,18 @@ func ReadBinlog(rd io.Reader) (err error) {
 	type binlogReadable interface {
 		Read(Reader)
 	}
+	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println("============================================")
+			spew.Dump(h)
+			fmt.Println(err)
+			n, _ := rd.(io.Seeker).Seek(0, os.SEEK_CUR)
+			fmt.Printf("Current File Seek %d\n", n)
+			debug.PrintStack()
+			os.Exit(1)
+		}
+	}()
 	for {
-		// Make sure buffer is enough
-		// FIXME If buf length is not enough, the header will not read all
-		// bufio.Read only read once
-		_, _ = c.Peek(19)
 		h.Read(c)
 		_, err = io.CopyN(buf, c, int64(h.EventSize-19))
 		if err != nil {
@@ -57,7 +64,7 @@ func ReadBinlog(rd io.Reader) (err error) {
 			buf.Reset()
 			continue
 		}
-		spew.Dump(buf.Bytes())
+		//		spew.Dump(buf.Bytes())
 		func() {
 			defer func() {
 				if err := recover(); err != nil {
@@ -81,7 +88,7 @@ func ReadBinlog(rd io.Reader) (err error) {
 			tab := p.(*TableMapEvent)
 			r.SetTableMap(tab)
 		}
-		spew.Dump(p)
+		//		spew.Dump(p)
 		if r.More() {
 			panic("Should no more")
 		}

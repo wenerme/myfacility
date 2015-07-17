@@ -165,16 +165,7 @@ TYPE_SWITCH:
 		if err != nil {
 			break
 		}
-		switch v.(type) {
-		case *string:
-			*v.(*string) = string(bytes)
-		case *[]byte:
-			*v.(*[]byte) = bytes
-		case *interface{}:
-			*v.(*interface{}) = string(bytes)
-		default:
-			goto CAN_NOT_GET
-		}
+		mustSetBytes(v, bytes)
 	case StrEof:
 		bytes, e := ioutil.ReadAll(r)
 		if e != nil {
@@ -182,16 +173,7 @@ TYPE_SWITCH:
 			break
 		}
 		n = len(bytes)
-		switch v.(type) {
-		case *string:
-			*v.(*string) = string(bytes)
-		case *[]byte:
-			*v.(*[]byte) = bytes
-		case *interface{}:
-			*v.(*interface{}) = string(bytes)
-		default:
-			goto CAN_NOT_GET
-		}
+		mustSetBytes(v, bytes)
 	case StrNul:
 		bytes, e := r.ReadBytes(0)
 		if e != nil {
@@ -200,16 +182,7 @@ TYPE_SWITCH:
 		}
 		n = len(bytes)
 		bytes = bytes[:n-1] // drop the nul
-		switch v.(type) {
-		case *string:
-			*v.(*string) = string(bytes)
-		case *[]byte:
-			*v.(*[]byte) = bytes
-		case *interface{}:
-			*v.(*interface{}) = string(bytes)
-		default:
-			goto CAN_NOT_GET
-		}
+		mustSetBytes(v, bytes)
 	default:
 		goto CAN_NOT_GET
 	}
@@ -246,18 +219,11 @@ func (r *BufReader) Get(values ...interface{}) {
 					if n, ok := checkInt(values[i+1]); ok {
 						i++
 						buf := make([]byte, n)
-						_, err := r.Read(buf)
+						_, err := io.ReadFull(r, buf)
 						if err != nil {
 							panic(err)
 						}
-						switch v.(type) {
-						case *string:
-							*v.(*string) = string(buf)
-						case *[]byte:
-							*v.(*[]byte) = buf
-						default:
-							panic(errors.New(fmt.Sprintf("Can not handle type StrVar %T(%v)", v, v)))
-						}
+						mustSetBytes(v, buf)
 						continue
 					}
 					panic(errors.New("Type StrVar need a int type size"))
@@ -284,8 +250,9 @@ func (r *BufReader) Get(values ...interface{}) {
 						default:
 							panic(errors.New(fmt.Sprintf("Unsupport Int size %v", n)))
 						}
+					} else {
+						panic(errors.New("Type Int need a size"))
 					}
-					panic(errors.New("Type Int need a size"))
 				}
 
 				r.getByType(v, pt)
@@ -323,5 +290,18 @@ func (r *BufReader) Get(values ...interface{}) {
 				panic(err)
 			}
 		}
+	}
+}
+
+func mustSetBytes(v interface{}, bytes []byte) {
+	switch v.(type) {
+	case *string:
+		*v.(*string) = string(bytes)
+	case *[]byte:
+		*v.(*[]byte) = bytes
+	case *interface{}:
+		*v.(*interface{}) = bytes
+	default:
+		panic(errors.New(fmt.Sprintf("Can not set []byte to %T", v)))
 	}
 }

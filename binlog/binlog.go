@@ -1,11 +1,12 @@
 package binlog
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/op/go-logging"
 	"github.com/wenerme/myfacility/proto"
-	"math"
 	"os"
+	"reflect"
 	"time"
 )
 
@@ -277,55 +278,36 @@ func readRow(tab *TableMapEvent, included bitSet, c proto.Reader) []interface{} 
 
 func readCell(t proto.ColumnType, meta uint, length int, c proto.Reader) interface{} {
 	var r interface{}
-
 	u, u8, u16, u32, u64 := uint(0), uint8(0), uint16(0), uint32(0), uint64(0)
 	_, _, _, _, _ = u, u8, u16, u32, u64
 	var b []byte
-	switch t {
-	// FIXME Make tiny short long longlong singed
+	var s string
 	// http://dev.mysql.com/doc/internals/en/binary-protocol-value.html
+	switch t {
 	case proto.MYSQL_TYPE_BIT:
 		bitSetLength := (meta>>8)*8 + (meta & 0xFF)
-		c.Get(&b, proto.StrVar, (bitSetLength+7)>>3)
-		r = b
+		c.Get(&r, proto.StrVar, (bitSetLength+7)>>3)
 	case proto.MYSQL_TYPE_TINY:
-		c.Get(&u8)
-		r = u8
+		c.Get(&r, reflect.Int8)
 	case proto.MYSQL_TYPE_SHORT:
-		c.Get(&u16)
-		r = u16
+		c.Get(&r, reflect.Int16)
 	case proto.MYSQL_TYPE_LONG:
-		c.Get(&u32)
-		r = u32
+		c.Get(&r, reflect.Int32)
 	case proto.MYSQL_TYPE_LONGLONG:
-		c.Get(&u64)
-		r = u64
+		c.Get(&r, reflect.Int64)
 	case proto.MYSQL_TYPE_INT24:
-		c.Get(&u, proto.Int3)
-		r = u
-	case proto.MYSQL_TYPE_YEAR:
-		var n uint8
-		c.Get(&n)
-		r = 1900 + int(n)
-	case proto.MYSQL_TYPE_DOUBLE:
-		var n uint64
-		c.Get(&n)
-		r = math.Float64frombits(n)
+		c.Get(&r, proto.Int3)
 	case proto.MYSQL_TYPE_FLOAT:
-		var n uint32
-		c.Get(&n)
-		r = math.Float32frombits(n)
-	case proto.MYSQL_TYPE_TIMESTAMP:
-		var n uint32
-		c.Get(&n)
-		r = time.Unix(int64(n), 0)
-	case proto.MYSQL_TYPE_DATETIME:
-		var v uint64
-		// 20060214220436
-		// 8 byte
-		c.Get(&v)
-		p := splitDateTime(v, 100, 6)
-		r = time.Date(p[5], time.Month(p[4]-1), p[3], p[2], p[1], p[0], 0, time.UTC)
+		c.Get(&r, reflect.Float32)
+	case proto.MYSQL_TYPE_DOUBLE:
+		c.Get(&r, reflect.Float64)
+	case proto.MYSQL_TYPE_NEWDECIMAL:
+		precision := int(meta & 0xFF)
+		scale := int(meta) >> 8
+		decimalLength := determineDecimalLength(precision, scale)
+		var bytes []byte
+		c.Get(&bytes, proto.StrVar, decimalLength)
+		r = toDecimal(precision, scale, bytes)
 	case proto.MYSQL_TYPE_DATE:
 		// year 2,month 1,day 1, hour 1, minute 1, second 1, micro second 4
 		var l uint8
@@ -355,65 +337,99 @@ func readCell(t proto.ColumnType, meta uint, length int, c proto.Reader) interfa
 		c.Get(&v, proto.Int3)
 		p := splitDateTime(v, 100, 3)
 		r = time.Duration(p[2])*time.Hour + time.Duration(p[1])*time.Minute + time.Duration(p[0])*time.Second
-	case proto.MYSQL_TYPE_VARCHAR, proto.MYSQL_TYPE_VAR_STRING:
-		var length uint
-		var s string
-		if meta < 256 {
-			c.Get(&length, proto.Int1, &s, proto.StrVar, &length)
+	case proto.MYSQL_TYPE_TIME2:
+		/*
+			in big endian:
+
+			1 bit sign (1= non-negative, 0= negative)
+			1 bit unused (reserved for future extensions)
+			10 bits hour (0-838)
+			6 bits minute (0-59)
+			6 bits second (0-59)
+			= (3 bytes in total)
+			+
+			fractional-seconds storage (size depends on meta)
+		*/
+		// big endian 3byte
+		b = make([]uint8, 4)
+		c.Get(b[1:])
+		u64 = uint64(binary.BigEndian.Uint32(b))
+		r = time.Duration(extractBits(u64, 2, 10, 24))*time.Hour*24 +
+			time.Duration(extractBits(u64, 12, 6, 24))*time.Minute +
+			time.Duration(extractBits(u64, 18, 6, 24))*time.Second +
+			time.Duration(getFractionalSeconds(int(meta), c))*time.Millisecond
+	case proto.MYSQL_TYPE_TIMESTAMP:
+		c.Get(&u32)
+		r = time.Unix(int64(u32), 0)
+	case proto.MYSQL_TYPE_TIMESTAMP2:
+		c.Get(&b, proto.StrVar, 4)
+		r = time.Unix(int64(binary.BigEndian.Uint32(b)), int64(getFractionalSeconds(int(meta), c)))
+	case proto.MYSQL_TYPE_DATETIME:
+		// 20060214220436
+		// 8 byte
+		c.Get(&u64)
+		p := splitDateTime(u64, 100, 6)
+		r = time.Date(p[5], time.Month(p[4]-1), p[3], p[2], p[1], p[0], 0, time.UTC)
+	case proto.MYSQL_TYPE_DATETIME2:
+		/*
+		   in big endian:
+
+		   1 bit sign (1= non-negative, 0= negative)
+		   17 bits year*13+month (year 0-9999, month 0-12)
+		   5 bits day (0-31)
+		   5 bits hour (0-23)
+		   6 bits minute (0-59)
+		   6 bits second (0-59)
+		   = (5 bytes in total)
+		   +
+		   fractional-seconds storage (size depends on meta)
+		*/
+		// big endian 5byte
+		b = make([]uint8, 8)
+		c.Get(b[3:])
+		u64 := binary.BigEndian.Uint64(b)
+		yearMonth := extractBits(u64, 1, 17, 40)
+		r = time.Date(yearMonth/13,
+			time.Month(yearMonth%13-1),
+			extractBits(u64, 18, 5, 40),
+			extractBits(u64, 23, 5, 40),
+			extractBits(u64, 28, 6, 40),
+			extractBits(u64, 34, 6, 40),
+			getFractionalSeconds(int(meta), c)*1000, time.UTC)
+	case proto.MYSQL_TYPE_YEAR:
+		c.Get(&u8)
+		r = 1900 + int(u8)
+	case proto.MYSQL_TYPE_STRING:
+		if length < 256 {
+			c.Get(&u, proto.Int1)
 		} else {
-			c.Get(&length, proto.Int2, &s, proto.StrVar, &length)
+			c.Get(&u, proto.Int2)
 		}
+		c.Get(&s, proto.StrVar, u)
+		r = s
+	case proto.MYSQL_TYPE_VARCHAR, proto.MYSQL_TYPE_VAR_STRING:
+		if meta < 256 {
+			c.Get(&u, proto.Int1)
+		} else {
+			c.Get(&u, proto.Int2)
+		}
+		c.Get(&s, proto.StrVar, u)
 		r = s
 	case proto.MYSQL_TYPE_BLOB:
-		var l uint
-		var b []byte
-		c.Get(&l, proto.Int, meta,
-			&b, proto.StrVar, &l)
-		r = b
-	case proto.MYSQL_TYPE_NEWDECIMAL:
-		precision := int(meta & 0xFF)
-		scale := int(meta) >> 8
-		decimalLength := determineDecimalLength(precision, scale)
-		var bytes []byte
-		c.Get(&bytes, proto.StrVar, decimalLength)
-		r = toDecimal(precision, scale, bytes)
-	case proto.MYSQL_TYPE_STRING:
-		var l uint
-		var s string
-		if length < 256 {
-			c.Get(&l, proto.Int1)
-		} else {
-			c.Get(&l, proto.Int2)
-		}
-		c.Get(&s, proto.StrVar, l)
-		r = s
+		c.Get(&u, proto.Int, meta,
+			&r, proto.StrVar, &u)
 	case proto.MYSQL_TYPE_ENUM:
-		// int
-		var l uint64
-		c.Get(&l, proto.Int, length)
-		r = l
+		// integer
+		c.Get(&r, proto.Int, length)
 	case proto.MYSQL_TYPE_SET:
 		// long
-		var l uint64
-		c.Get(&l, proto.Int, length)
-		r = l
+		c.Get(&r, proto.Int, length)
 	default:
-		panic(fmt.Sprintf("Unsupport type %s meta %d", t, meta))
+		panic(fmt.Sprintf("Unsupport column type %v meta %d", t, meta))
 	}
 	return r
 }
 
-/*
-   private static int[] split(long value, int divider, int length) {
-       int[] result = new int[length];
-       for (int i = 0; i < length - 1; i++) {
-           result[i] = (int) (value % divider);
-           value /= divider;
-       }
-       result[length - 1] = (int) value;
-       return result;
-   }
-*/
 func splitDateTime(v uint64, d int, l int) []int {
 	r := make([]int, l)
 	for i := 0; i < l-1; i++ {
@@ -422,4 +438,30 @@ func splitDateTime(v uint64, d int, l int) []int {
 	}
 	r[l-1] = int(v)
 	return r
+}
+
+func extractBits(v uint64, bitOffset, numberOfBits, payloadSize uint) int {
+	result := v>>payloadSize - uint64(bitOffset+numberOfBits)
+	return int(result & ((1 << numberOfBits) - 1))
+}
+
+func getFractionalSeconds(meta int, c proto.Reader) (fractionalSeconds int) {
+	switch meta {
+	case 1:
+	case 2:
+		c.Get(&fractionalSeconds, proto.Int1)
+	case 3:
+	case 4:
+		c.Get(&fractionalSeconds, proto.Int2)
+	case 5:
+	case 6:
+		c.Get(&fractionalSeconds, proto.Int3)
+	default:
+		return 0
+	}
+	if meta%2 == 1 {
+		fractionalSeconds /= 10
+	}
+	fractionalSeconds /= 1000
+	return
 }

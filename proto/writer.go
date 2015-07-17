@@ -77,8 +77,9 @@ func (w *BufWriter) Put(values ...interface{}) {
 						default:
 							panic(errors.New(fmt.Sprintf("Unsupport Int size %v", n)))
 						}
+					} else {
+						panic(errors.New("Type Int need a size"))
 					}
-					panic(errors.New("Type Int need a size"))
 				}
 				w.mustPutByType(v, pt)
 				continue
