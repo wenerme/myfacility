@@ -43,7 +43,6 @@ type Writer interface {
 	// Pet(&value,Int,&n)
 	// Pet(n, IgnoreByte)
 	Put(...interface{})
-	PutZero(int)
 }
 
 // General protocol types

@@ -34,7 +34,7 @@ func ReadBinlog(rd io.Reader) (err error) {
 	}
 
 	h := &EventHeader{}
-	m := NewEventMap()
+	m := NewEventTypeMap()
 	type readable interface {
 		Read(proto.Reader)
 	}
@@ -53,6 +53,10 @@ func ReadBinlog(rd io.Reader) (err error) {
 		}
 	}()
 	for {
+		if !c.More() {
+			fmt.Println("No more")
+			os.Exit(0)
+		}
 		h.Read(c)
 		_, err = io.CopyN(buf, c, int64(h.EventSize-19))
 		if err != nil {
@@ -86,7 +90,7 @@ func ReadBinlog(rd io.Reader) (err error) {
 		}()
 		if h.EventType == TABLE_MAP_EVENT {
 			tab := p.(*TableMapEvent)
-			r.SetTableMap(tab)
+			r.SetTableMap(*tab)
 		}
 		//		spew.Dump(p)
 		if r.More() {

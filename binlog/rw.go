@@ -7,6 +7,14 @@ import (
 type Reader interface {
 	proto.Reader
 	TableMap(uint64) *TableMapEvent
+	SetTableMap(tab TableMapEvent)
+	//	Next() (Event, error)
+}
+
+type Writer interface {
+	proto.Writer
+	TableMap(uint64) *TableMapEvent
+	SetTableMap(tab *TableMapEvent)
 }
 
 type reader struct {
@@ -17,8 +25,6 @@ type reader struct {
 func (c *reader) TableMap(id uint64) *TableMapEvent {
 	return c.tables[id]
 }
-func (c *reader) SetTableMap(tab *TableMapEvent) {
-	// make a copy
-	t := *tab
-	c.tables[t.TableId] = &t
+func (c *reader) SetTableMap(tab TableMapEvent) {
+	c.tables[tab.TableId] = &tab
 }

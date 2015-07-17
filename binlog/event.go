@@ -7,6 +7,13 @@ import (
 
 type Event interface {
 	Header() EventHeader
+	Event() interface{}
+	EventData
+}
+type EventData interface {
+	EventType() EventType
+	Read(Reader)
+	Write(Writer)
 }
 
 // The binlog event header starts each event and is either 13 or 19 bytes long,
@@ -27,43 +34,30 @@ func (p *EventHeader) Read(c proto.Reader) {
 	p.Timestamp = time.Unix(int64(ts), 0)
 }
 
-// The query event is used to send text querys right the binlog.
-// http://dev.mysql.com/doc/internals/en/query-event.html
-type QueryEvent struct {
-	SlaveProxyId  uint32
-	ExecutionTime uint32
-	ErrorCode     uint16
-	Status        []byte
-	Schema        string
-	Query         string
+type UnknownEvent struct {
+	Data []byte
 }
 
-func (p *QueryEvent) Read(c proto.Reader) {
-	var m uint8
-	var n uint16
-	c.Get(&p.SlaveProxyId,
-		&p.ExecutionTime,
-		&m,
-		&p.ErrorCode,
-		&n,
-		&p.Status, proto.StrVar, &n,
-		&p.Schema, proto.StrVar, &m,
-		1, proto.IgnoreByte,
-		&p.Query, proto.StrEof)
+func (p *UnknownEvent) Read(c proto.Reader) {
+	c.Get(&p.Data, proto.StrEof)
 }
-func (p *QueryEvent) Type() EventType {
-	return QUERY_EVENT
+func (p *UnknownEvent) Write(c proto.Writer) {
+	c.Put(&p.Data, proto.StrEof)
 }
-func NewEventMap() map[EventType]interface{} {
+func (p *UnknownEvent) EventType() EventType {
+	return UNKNOWN_EVENT
+}
+
+func NewEventTypeMap() map[EventType]interface{} {
 	return map[EventType]interface{}{
-		UNKNOWN_EVENT:                 nil,
+		UNKNOWN_EVENT:                 &UnknownEvent{},
 		START_EVENT_V3:                &StartEventV3{},
 		QUERY_EVENT:                   &QueryEvent{},
 		STOP_EVENT:                    StopEvent,
-		ROTATE_EVENT:                  nil,
+		ROTATE_EVENT:                  &RowsEvent{},
 		INTVAR_EVENT:                  &IntvarEvent{},
 		LOAD_EVENT:                    &LoadEvent{},
-		SLAVE_EVENT:                   nil,
+		SLAVE_EVENT:                   &UnknownEvent{},
 		CREATE_FILE_EVENT:             &CreateFileEvent{},
 		APPEND_BLOCK_EVENT:            &AppendBlockEvent{},
 		EXEC_LOAD_EVENT:               &ExecLoadEvent{},
@@ -85,7 +79,7 @@ func NewEventMap() map[EventType]interface{} {
 		INCIDENT_EVENT:                &IncidentEvent{},
 		HEARTBEAT_EVENT:               HeartbeatEvent,
 		IGNORABLE_EVENT:               nil,
-		ROWS_QUERY_EVENT:              nil,
+		ROWS_QUERY_EVENT:              &RowsQueryEvent{},
 		WRITE_ROWS_EVENTv2:            nil,
 		UPDATE_ROWS_EVENTv2:           nil,
 		DELETE_ROWS_EVENTv2:           nil,

@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+var StopEvent = eventTypePack(STOP_EVENT)
+var HeartbeatEvent = eventTypePack(HEARTBEAT_EVENT)
+
 // A start event is the first event of a binlog for binlog-version 1 to 3.
 // http://dev.mysql.com/doc/internals/en/start-event-v3.html
 type StartEventV3 struct {
@@ -50,4 +53,29 @@ func (p *FormatDescriptionEvent) Read(c proto.Reader) {
 }
 func (p *FormatDescriptionEvent) Type() EventType {
 	return FORMAT_DESCRIPTION_EVENT
+}
+
+type IncidentEvent struct {
+	IncidentType uint8
+	Message      []byte
+}
+
+func (p *IncidentEvent) Read(c proto.Reader) {
+	var n uint8
+	c.Get(&p.IncidentType, &n, &p.Message, proto.StrVar, &n)
+}
+func (p *IncidentEvent) Type() EventType {
+	return INCIDENT_EVENT
+}
+
+type RotateEvent struct {
+	BinlogPos  uint64
+	BinlogFile string
+}
+
+func (p *RotateEvent) Read(c proto.Reader) {
+	c.Get(&p.BinlogPos, &p.BinlogFile, proto.StrEof)
+}
+func (p *RotateEvent) Type() EventType {
+	return ROTATE_EVENT
 }
