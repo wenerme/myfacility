@@ -19,6 +19,17 @@ type QueryEvent struct {
 	Query         string
 }
 
+func (p *QueryEvent) Write(c proto.Writer) {
+	c.Put(&p.SlaveProxyId,
+		&p.ExecutionTime,
+		uint8(len(p.Schema)),
+		&p.ErrorCode,
+		uint16(len(p.Status)),
+		&p.Status, proto.StrEof,
+		&p.Schema, proto.StrEof,
+		1, proto.IgnoreByte,
+		&p.Query, proto.StrEof)
+}
 func (p *QueryEvent) Read(c proto.Reader) {
 	var m uint8
 	var n uint16

@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"bufio"
 	"fmt"
 	"github.com/spacemonkeygo/errors"
 	"io"
@@ -43,6 +44,7 @@ type Writer interface {
 	// Pet(&value,Int,&n)
 	// Pet(n, IgnoreByte)
 	Put(...interface{})
+	Flush() error
 }
 
 // General protocol types
@@ -70,6 +72,19 @@ const (
 
 type readablePack interface {
 	Read(Reader)
+}
+
+func NewReader(rd io.Reader) Reader {
+	if r, ok := rd.(Reader); ok {
+		return r
+	}
+	return &BufReader{bufio.NewReader(rd)}
+}
+func NewWriter(rd io.Writer) Writer {
+	if r, ok := rd.(Writer); ok {
+		return r
+	}
+	return &BufWriter{bufio.NewWriter(rd)}
 }
 
 func checkInt(v interface{}) (i int, ok bool) {

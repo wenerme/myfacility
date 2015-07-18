@@ -51,7 +51,17 @@ func (p *FormatDescriptionEvent) Read(c proto.Reader) {
 	)
 	p.MySQLServerVersion = strings.Trim(p.MySQLServerVersion, "\000")
 }
-func (p *FormatDescriptionEvent) Type() EventType {
+func (p *FormatDescriptionEvent) Write(c proto.Writer) {
+	c.Put(&p.BinlogVersion,
+		&p.MySQLServerVersion, proto.StrEof,
+		50-len(p.MySQLServerVersion), proto.IgnoreByte,
+		&p.CreateTimestamp,
+		&p.EventHeaderLength, // Should always be 19.
+		&p.EventTypeHeader, proto.StrEof,
+	)
+}
+
+func (p *FormatDescriptionEvent) EventType() EventType {
 	return FORMAT_DESCRIPTION_EVENT
 }
 

@@ -39,6 +39,9 @@ type TableMapEvent struct {
 	NullBitMask    []byte
 }
 
+func (p *TableMapEvent) EventType() EventType {
+	return TABLE_MAP_EVENT
+}
 func (p *TableMapEvent) Read(c proto.Reader) {
 	var n uint8
 	var columns uint
@@ -83,6 +86,62 @@ func (p *TableMapEvent) Read(c proto.Reader) {
 		}
 	}
 	c.Get(&p.NullBitMask, proto.StrVar, (columns+7)/8)
+}
+func (p *TableMapEvent) Write(c proto.Writer) {
+	var n uint8 = uint8(len(p.SchemaName))
+	var m uint8 = uint8(len(p.TableName))
+	var columns uint = uint(len(p.ColumnTypes))
+	// TODO is ok to ignore post_header_len ?
+	// Note Can use StrNul ?
+	c.Put(&p.TableId, proto.Int6,
+		&p.Flag,
+		&n, &p.SchemaName, proto.StrVar, &n,
+		1, proto.IgnoreByte,
+		&m, &p.TableName, proto.StrVar, &m,
+		1, proto.IgnoreByte,
+		&columns, &p.ColumnTypes, proto.StrVar, &columns)
+	//	&p.ColumnMetadata
+	var l uint
+	for _, t := range p.ColumnTypes {
+		switch proto.ColumnType(t) {
+		case proto.MYSQL_TYPE_STRING, proto.MYSQL_TYPE_VAR_STRING, proto.MYSQL_TYPE_VARCHAR:
+			l += 2
+		case proto.MYSQL_TYPE_BLOB, proto.MYSQL_TYPE_DOUBLE, proto.MYSQL_TYPE_FLOAT:
+			l += 1
+		case proto.MYSQL_TYPE_TIMESTAMP2, proto.MYSQL_TYPE_DATETIME2, proto.MYSQL_TYPE_TIME2:
+			l += 1
+		case proto.MYSQL_TYPE_DECIMAL, proto.MYSQL_TYPE_NEWDECIMAL, proto.MYSQL_TYPE_SET, proto.MYSQL_TYPE_ENUM:
+			l += 2
+		}
+	}
+	c.Put(l)
+	for i, t := range p.ColumnTypes {
+		switch proto.ColumnType(t) {
+		case proto.MYSQL_TYPE_STRING, proto.MYSQL_TYPE_VAR_STRING, proto.MYSQL_TYPE_VARCHAR:
+			c.Put(p.ColumnMetadata[i], proto.Int2)
+		case proto.MYSQL_TYPE_BLOB, proto.MYSQL_TYPE_DOUBLE, proto.MYSQL_TYPE_FLOAT:
+			c.Put(p.ColumnMetadata[i], proto.Int1)
+		case proto.MYSQL_TYPE_TIMESTAMP2, proto.MYSQL_TYPE_DATETIME2, proto.MYSQL_TYPE_TIME2:
+			c.Put(p.ColumnMetadata[i], proto.Int1)
+		case proto.MYSQL_TYPE_DECIMAL, proto.MYSQL_TYPE_NEWDECIMAL, proto.MYSQL_TYPE_SET, proto.MYSQL_TYPE_ENUM:
+			c.Put(p.ColumnMetadata[i], proto.Int2)
+		/*
+			proto.MYSQL_TYPE_TIME
+			proto.MYSQL_TYPE_BIT
+			proto.MYSQL_TYPE_DATE
+			proto.MYSQL_TYPE_DATETIME
+			proto.MYSQL_TYPE_TIMESTAMP
+			proto.MYSQL_TYPE_TINY
+			proto.MYSQL_TYPE_SHORT
+			proto.MYSQL_TYPE_INT24
+			proto.MYSQL_TYPE_LONG
+			proto.MYSQL_TYPE_LONGLONG
+			0
+		*/
+		default:
+		}
+	}
+	c.Put(&p.NullBitMask, proto.StrVar, (columns+7)/8)
 }
 
 /*

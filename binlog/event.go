@@ -5,15 +5,24 @@ import (
 	"time"
 )
 
-type Event interface {
-	Header() EventHeader
-	Event() interface{}
-	EventData
-}
 type EventData interface {
 	EventType() EventType
-	Read(Reader)
-	Write(Writer)
+}
+
+type Event struct {
+	header *EventHeader
+	e      EventData
+	getter func() EventData
+}
+
+func (e *Event) Header() *EventHeader {
+	return e.header
+}
+func (e *Event) Event() EventData {
+	if e.e == nil && e.getter != nil {
+		e.e = e.getter()
+	}
+	return e.e
 }
 
 // The binlog event header starts each event and is either 13 or 19 bytes long,
@@ -31,7 +40,11 @@ type EventHeader struct {
 func (p *EventHeader) Read(c proto.Reader) {
 	var ts uint32
 	c.Get(&ts, &p.EventType, &p.ServerId, &p.EventSize, &p.NextPos, &p.Flags)
-	p.Timestamp = time.Unix(int64(ts), 0)
+	p.Timestamp = time.Unix(int64(ts), 0).UTC()
+}
+
+func (p *EventHeader) Write(c proto.Writer) {
+	c.Put(uint32(p.Timestamp.Unix()), &p.EventType, &p.ServerId, &p.EventSize, &p.NextPos, &p.Flags)
 }
 
 type UnknownEvent struct {

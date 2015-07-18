@@ -14,11 +14,24 @@ import (
 
 var ErrFileHeader = errors.New("Wrong binlog file header")
 
+type protoReadable interface {
+	Read(proto.Reader)
+}
+type binlogReadable interface {
+	Read(Reader)
+}
+type protoWritable interface {
+	Write(proto.Writer)
+}
+type binlogWritable interface {
+	Write(Writer)
+}
+
 func ReadBinlog(rd io.Reader) (err error) {
 	rdBuf := bufio.NewReaderSize(rd, 19)
 	c := &proto.BufReader{Reader: rdBuf}
 	buf := &bytes.Buffer{}
-	r := &reader{Reader: &proto.BufReader{Reader: bufio.NewReader(buf)}, tables: make(map[uint64]*TableMapEvent)}
+	r := &reader{Reader: &proto.BufReader{Reader: bufio.NewReader(buf)}, context: newContext()}
 	{
 		// Check file header
 		tmp := make([]byte, 4)
@@ -35,12 +48,6 @@ func ReadBinlog(rd io.Reader) (err error) {
 
 	h := &EventHeader{}
 	m := NewEventTypeMap()
-	type readable interface {
-		Read(proto.Reader)
-	}
-	type binlogReadable interface {
-		Read(Reader)
-	}
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println("============================================")
@@ -81,11 +88,12 @@ func ReadBinlog(rd io.Reader) (err error) {
 					os.Exit(1)
 				}
 			}()
-			if _, ok := p.(readable); ok {
-				p.(readable).Read(r)
-			}
-			if _, ok := p.(binlogReadable); ok {
+			if _, ok := p.(protoReadable); ok {
+				p.(protoReadable).Read(r)
+			} else if _, ok := p.(binlogReadable); ok {
 				p.(binlogReadable).Read(r)
+			} else {
+				panic(fmt.Sprintf("No way to read %T", p))
 			}
 		}()
 		if h.EventType == TABLE_MAP_EVENT {
