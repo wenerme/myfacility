@@ -71,7 +71,7 @@ func (p *OKPack) Read(c Proto) {
 
 	if c.HasCap(CLIENT_SESSION_TRACK) {
 		c.Get(&p.Info)
-		if Status(p.Status).Has(SERVER_SESSION_STATE_CHANGED) {
+		if p.Status.Has(SERVER_SESSION_STATE_CHANGED) {
 			c.Get(&p.SessionState)
 		}
 	} else {
@@ -88,7 +88,7 @@ func (p *OKPack) Write(c Proto) {
 
 	if c.HasCap(CLIENT_SESSION_TRACK) {
 		c.Put(&p.Info)
-		if Status(p.Status).Has(SERVER_SESSION_STATE_CHANGED) {
+		if p.Status.Has(SERVER_SESSION_STATE_CHANGED) {
 			c.Put(&p.SessionState)
 		}
 	} else {

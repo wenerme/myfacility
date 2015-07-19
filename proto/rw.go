@@ -15,7 +15,6 @@ Also can specify protocol type explicit
 
 // A reader used to read packet
 type Reader interface {
-	io.Reader
 	// Format
 	// Get(&value,&value,&value...)
 	// Get(&value,ProtoType)
@@ -33,7 +32,6 @@ type Reader interface {
 
 // A writer used to write packet
 type Writer interface {
-	io.Writer
 	// Format
 	// Pet(&value,&value,&value...)
 	// Pet(value,value,value...)
