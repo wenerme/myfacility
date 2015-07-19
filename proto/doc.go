@@ -13,7 +13,7 @@ Use Read and Writer to do basic protocol stuff, use Proto to work with packet.
 
 Change Get to Put for Writer.When Put, the pointer is unnecessary but acceptable.
 When use ProtoType to access integer must use unsigned type.Most of time, use Reader and Writer is just a method name change.
-This is how to decode and encode OK packet, it's easy to read and write.
+This is how to decode and encode OK packet, it's easy to read and write, all packets follow this pattern.
 
 	func (p *OKPack) Read(c Proto) {
 		c.Get(&p.Header, &p.AffectedRows, IntEnc, &p.LastInsertId, IntEnc)
@@ -50,7 +50,7 @@ This is how to decode and encode OK packet, it's easy to read and write.
 		}
 	}
 
-When use Get/Put without explicit type, will use follow type map:
+When use Get/Put without explicit type, will use following type map:
 
 	*uint -> IntEnc
 	*int -> IntEnc will convert to/from uint

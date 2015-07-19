@@ -75,8 +75,8 @@ const _Command_name = "COM_SLEEPCOM_QUITCOM_INIT_DBCOM_QUERYCOM_FIELD_LISTCOM_CR
 
 var _Command_index = [...]uint16{0, 9, 17, 28, 37, 51, 64, 75, 86, 98, 112, 128, 139, 155, 164, 172, 180, 198, 213, 228, 242, 257, 275, 291, 307, 330, 344, 358, 372, 386, 396, 416, 436}
 
-func (i Command) String() string {
-	if i >= Command(len(_Command_index)-1) {
+func (i CommandType) String() string {
+	if i >= CommandType(len(_Command_index)-1) {
 		return fmt.Sprintf("Command(%d)", i)
 	}
 	return _Command_name[_Command_index[i]:_Command_index[i+1]]

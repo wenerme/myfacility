@@ -14,7 +14,7 @@ type Buffer struct {
 	buf *bytes.Buffer
 	con io.ReadWriter
 	cap Capability
-	com Command
+	com CommandType
 	seq uint8
 }
 
@@ -113,9 +113,9 @@ func (b *Buffer) SendPacket() (n int, err error) {
 	return
 }
 
-func (r *Buffer) SetCom(com Command) {
+func (r *Buffer) SetCom(com CommandType) {
 	r.com = com
 }
-func (r *Buffer) Com() Command {
+func (r *Buffer) Com() CommandType {
 	return r.com
 }

@@ -2,7 +2,7 @@ package proto
 
 type CommandPack interface {
 	Pack
-	Type() Command
+	CommandType() CommandType
 }
 
 var ComSleep = comPack(COM_SLEEP)
@@ -18,7 +18,7 @@ var ComDelayInsert = comPack(COM_DELAYED_INSERT)
 var ComConnectOut = comPack(COM_CONNECT_OUT)
 var ComDaemon = comPack(COM_DAEMON)
 
-type comPack Command
+type comPack CommandType
 
 func (p comPack) Read(c Proto) {
 	c.Get(1, IgnoreByte)
@@ -26,8 +26,8 @@ func (p comPack) Read(c Proto) {
 func (p comPack) Write(c Proto) {
 	c.Put(p)
 }
-func (p comPack) Type() Command {
-	return Command(p)
+func (p comPack) CommandType() CommandType {
+	return CommandType(p)
 }
 
 // A COM_QUERY is used to send the server a text-based query that is executed immediately.
@@ -43,7 +43,7 @@ func (p *ComQuery) Read(c Proto) {
 func (p *ComQuery) Write(c Proto) {
 	c.Put(COM_QUERY, &p.Query, StrEof)
 }
-func (p *ComQuery) Type() Command {
+func (p *ComQuery) CommandType() CommandType {
 	return COM_QUERY
 }
 
@@ -55,9 +55,9 @@ func (p *ComInitDb) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.Schema, StrEof)
 }
 func (p *ComInitDb) Write(c Proto) {
-	c.Put(p.Type(), &p.Schema, StrEof)
+	c.Put(p.CommandType(), &p.Schema, StrEof)
 }
-func (p *ComInitDb) Type() Command {
+func (p *ComInitDb) CommandType() CommandType {
 	return COM_INIT_DB
 }
 
@@ -69,9 +69,9 @@ func (p *ComCreateDb) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.Schema, StrEof)
 }
 func (p *ComCreateDb) Write(c Proto) {
-	c.Put(p.Type(), &p.Schema, StrEof)
+	c.Put(p.CommandType(), &p.Schema, StrEof)
 }
-func (p *ComCreateDb) Type() Command {
+func (p *ComCreateDb) CommandType() CommandType {
 	return COM_CREATE_DB
 }
 
@@ -85,7 +85,7 @@ func (p *ComSetOption) Read(c Proto) {
 func (p *ComSetOption) Write(c Proto) {
 	c.Put(COM_SET_OPTION, &p.Option)
 }
-func (p *ComSetOption) Type() Command {
+func (p *ComSetOption) CommandType() CommandType {
 	return COM_SET_OPTION
 }
 
@@ -156,7 +156,7 @@ func (p *ComChangeUser) Write(c Proto) {
 		}
 	}
 }
-func (p *ComChangeUser) Type() Command {
+func (p *ComChangeUser) CommandType() CommandType {
 	return COM_CHANGE_USER
 }
 
@@ -170,7 +170,7 @@ func (p *ComDropDb) Read(c Proto) {
 func (p *ComDropDb) Write(c Proto) {
 	c.Put(COM_DROP_DB, &p.Schema, StrEof)
 }
-func (p *ComDropDb) Type() Command {
+func (p *ComDropDb) CommandType() CommandType {
 	return COM_DROP_DB
 }
 
@@ -184,7 +184,7 @@ func (p *ComRefresh) Read(c Proto) {
 func (p *ComRefresh) Write(c Proto) {
 	c.Put(COM_REFRESH, &p.Subcommand)
 }
-func (p *ComRefresh) Type() Command {
+func (p *ComRefresh) CommandType() CommandType {
 	return COM_REFRESH
 }
 
@@ -202,7 +202,7 @@ func (p *ComShutdown) Write(c Proto) {
 	// TODO Define shutdown type
 	c.Put(COM_SHUTDOWN, &p.ShutdownType)
 }
-func (p *ComShutdown) Type() Command {
+func (p *ComShutdown) CommandType() CommandType {
 	return COM_SHUTDOWN
 }
 
@@ -216,7 +216,7 @@ func (p *ComProcessKill) Read(c Proto) {
 func (p *ComProcessKill) Write(c Proto) {
 	c.Put(COM_PROCESS_KILL, &p.ProcessId)
 }
-func (p *ComProcessKill) Type() Command {
+func (p *ComProcessKill) CommandType() CommandType {
 	return COM_PROCESS_KILL
 }
 
@@ -229,20 +229,20 @@ func (p *ComFieldList) Read(c Proto) {
 	c.Get(1, IgnoreByte, &p.Table, StrNul, &p.Field, StrEof)
 }
 func (p *ComFieldList) Write(c Proto) {
-	c.Put(p.Type(), &p.Table, StrNul, &p.Field, StrEof)
+	c.Put(p.CommandType(), &p.Table, StrNul, &p.Field, StrEof)
 }
-func (p *ComFieldList) Type() Command {
+func (p *ComFieldList) CommandType() CommandType {
 	return COM_FIELD_LIST
 }
 
 type ComPack struct {
-	Type Command
+	Type CommandType
 	Data []byte
 }
 
 func (p *ComPack) Read(c Proto) {
 	c.Get(&p.Data, StrEof)
-	p.Type = Command(p.Data[0])
+	p.Type = CommandType(p.Data[0])
 }
 func (p *ComPack) Write(c Proto) {
 	c.Put(&p.Data, StrEof)
@@ -261,8 +261,8 @@ func (p *ComPack) ReadPack() (com CommandPack) {
 	}
 	return nil
 }
-func NewCommandPacketMap() map[Command]CommandPack {
-	m := map[Command]CommandPack{
+func NewCommandPacketMap() map[CommandType]CommandPack {
+	m := map[CommandType]CommandPack{
 		COM_SLEEP:               ComSleep,
 		COM_QUIT:                ComQuit,
 		COM_INIT_DB:             &ComInitDb{},

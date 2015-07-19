@@ -1,14 +1,14 @@
 package proto
 
 //go:vet
-//go:generate stringer -output=strings.go -type=Capability,Status,Command,SessionState,ProtoType,ColumnType,CursorType
+//go:generate stringer -output=strings.go -type=Capability,Status,CommandType,SessionState,ProtoType,ColumnType,CursorType
 
 // Packet less than 50 will not compress
 const MIN_COMPRESS_LENGTH = 50
 
 type (
 	// Packet command type
-	Command uint8
+	CommandType uint8
 	// http://dev.mysql.com/doc/internals/en/packet-OK_Packet.html#cs-sect-packet-ok-sessioninfo
 	SessionState uint16
 
@@ -158,7 +158,7 @@ const (
 
 const (
 	// internal server command
-	COM_SLEEP Command = iota
+	COM_SLEEP CommandType = iota
 	// Tells the server that the client wants to close the connection
 	// response: either a connection close or a OK_Packet
 	COM_QUIT

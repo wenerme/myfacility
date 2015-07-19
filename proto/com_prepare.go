@@ -91,7 +91,7 @@ func (p *ComStmtPrepare) Read(c Proto) {
 func (p *ComStmtPrepare) Write(c Proto) {
 	c.Put(COM_STMT_PREPARE, p.Query, StrEof)
 }
-func (p *ComStmtPrepare) Type() Command {
+func (p *ComStmtPrepare) CommandType() CommandType {
 	return COM_STMT_PREPARE
 }
 
@@ -140,7 +140,7 @@ func (p *ComStmtExecute) Write(c Proto) {
 		}
 	}
 }
-func (p *ComStmtExecute) Type() Command {
+func (p *ComStmtExecute) CommandType() CommandType {
 	return COM_STMT_EXECUTE
 }
 
@@ -156,7 +156,7 @@ func (p *ComStmtSendLongData) Read(c Proto) {
 func (p *ComStmtSendLongData) Write(c Proto) {
 	c.Put(COM_STMT_SEND_LONG_DATA, &p.StmtId, &p.ParamId, &p.Data, StrEof)
 }
-func (p *ComStmtSendLongData) Type() Command {
+func (p *ComStmtSendLongData) CommandType() CommandType {
 	return COM_STMT_SEND_LONG_DATA
 }
 
@@ -170,7 +170,7 @@ func (p *ComStmtClose) Read(c Proto) {
 func (p *ComStmtClose) Write(c Proto) {
 	c.Put(COM_STMT_CLOSE, p.StmtId)
 }
-func (p *ComStmtClose) Type() Command {
+func (p *ComStmtClose) CommandType() CommandType {
 	return COM_STMT_CLOSE
 }
 
@@ -184,7 +184,7 @@ func (p *ComStmtReset) Read(c Proto) {
 func (p *ComStmtReset) Write(c Proto) {
 	c.Put(COM_STMT_RESET, p.StmtId)
 }
-func (p *ComStmtReset) Type() Command {
+func (p *ComStmtReset) CommandType() CommandType {
 	return COM_STMT_RESET
 }
 
@@ -199,6 +199,6 @@ func (p *ComStmtFetch) Read(c Proto) {
 func (p *ComStmtFetch) Write(c Proto) {
 	c.Put(COM_STMT_FETCH, p.StmtId, p.Rows)
 }
-func (p *ComStmtFetch) Type() Command {
+func (p *ComStmtFetch) CommandType() CommandType {
 	return COM_STMT_FETCH
 }

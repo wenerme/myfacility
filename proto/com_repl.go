@@ -12,7 +12,7 @@ func (p *ComTableDump) Read(c Proto) {
 func (p *ComTableDump) Write(c Proto) {
 	c.Put(COM_TABLE_DUMP, uint8(len(p.Database)), p.Database, uint8(len(p.Table)), p.Table)
 }
-func (p *ComTableDump) Type() Command {
+func (p *ComTableDump) CommandType() CommandType {
 	return COM_TABLE_DUMP
 }
 
@@ -29,7 +29,7 @@ func (p *ComBinlogDump) Read(c Proto) {
 func (p *ComBinlogDump) Write(c Proto) {
 	c.Put(COM_BINLOG_DUMP, &p.BinlogPos, &p.Flags, &p.ServerId, &p.BinlogFilename, StrEof)
 }
-func (p *ComBinlogDump) Type() Command {
+func (p *ComBinlogDump) CommandType() CommandType {
 	return COM_BINLOG_DUMP
 }
 
@@ -74,7 +74,7 @@ func (p *ComBinlogDumpGtid) Write(c Proto) {
 		c.Put(uint32(len(p.Data)), &p.Data, StrEof)
 	}
 }
-func (p *ComBinlogDumpGtid) Type() Command {
+func (p *ComBinlogDumpGtid) CommandType() CommandType {
 	return COM_BINLOG_DUMP_GTID
 }
 
@@ -112,6 +112,6 @@ func (p *ComRegisterSlave) Write(c Proto) {
 		&p.MasterId,
 	)
 }
-func (p *ComRegisterSlave) Type() Command {
+func (p *ComRegisterSlave) CommandType() CommandType {
 	return COM_REGISTER_SLAVE
 }

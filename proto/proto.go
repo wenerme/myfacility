@@ -34,6 +34,6 @@ type Proto interface {
 	HasCap(Capability) bool
 	Cap() Capability
 	SetCap(Capability)
-	Com() Command
-	SetCom(Command)
+	Com() CommandType
+	SetCom(CommandType)
 }
