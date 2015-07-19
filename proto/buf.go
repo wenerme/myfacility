@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"encoding/hex"
@@ -10,8 +9,8 @@ import (
 )
 
 type Buffer struct {
-	*BufReader
-	*BufWriter
+	Reader
+	Writer
 	buf *bytes.Buffer
 	con io.ReadWriter
 	cap Capability
@@ -24,8 +23,8 @@ func NewBuffer(con io.ReadWriter, buf *bytes.Buffer) *Buffer {
 		buf = bytes.NewBufferString("")
 	}
 	b := &Buffer{buf: buf, con: con}
-	b.BufReader = &BufReader{Reader: bufio.NewReaderSize(buf, 0x400)}
-	b.BufWriter = &BufWriter{Writer: bufio.NewWriterSize(buf, 0x400)}
+	b.Reader = NewReader(buf)
+	b.Writer = NewWriter(buf)
 	return b
 }
 
@@ -56,7 +55,6 @@ func (b *Buffer) RecvReadPacket(p Pack) (n int, err error) {
 }
 func (b *Buffer) WriteSendPacket(p Pack) (n int, err error) {
 	p.Write(b)
-	b.BufWriter.Flush()
 
 	n, err = b.SendPacket()
 	return
@@ -66,7 +64,6 @@ func (b *Buffer) ReadPacket(p Pack) {
 }
 func (b *Buffer) WritePacket(p Pack) {
 	p.Write(b)
-	b.BufWriter.Flush()
 }
 func (b *Buffer) MustRecvPacket() int {
 	n, err := b.RecvPacket()
@@ -99,7 +96,6 @@ func (b *Buffer) RecvPacket() (n int, err error) {
 	return
 }
 func (b *Buffer) SendPacket() (n int, err error) {
-	b.BufWriter.Flush()
 	var l uint32
 	l = uint32(len(b.buf.Bytes()))
 	l = l | (uint32(b.seq) << 24)

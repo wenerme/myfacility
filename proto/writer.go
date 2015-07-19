@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"bufio"
 	"encoding/binary"
 	"fmt"
 	"github.com/spacemonkeygo/errors"
@@ -9,11 +8,11 @@ import (
 	"reflect"
 )
 
-type BufWriter struct {
-	*bufio.Writer
+type writer struct {
+	io.Writer
 }
 
-func (w *BufWriter) Put(values ...interface{}) {
+func (w *writer) Put(values ...interface{}) {
 	argc := len(values)
 	for i := 0; i < argc; i++ {
 		v := values[i]
@@ -111,22 +110,22 @@ func (w *BufWriter) Put(values ...interface{}) {
 		}
 	}
 }
-func (w *BufWriter) PutZero(n int) {
-	for i := 0; i < n; i++ {
-		err := w.WriteByte(0)
-		if err != nil {
-			panic(err)
-		}
+func (w *writer) WriteByte(b byte) (err error) {
+	if bw, ok := w.Writer.(io.ByteWriter); ok {
+		err = bw.WriteByte(b)
+	} else {
+		_, err = w.Write([]byte{b})
 	}
+	return
 }
-func (w *BufWriter) mustPutByType(v interface{}, t ProtoType) (n int) {
+func (w *writer) mustPutByType(v interface{}, t ProtoType) (n int) {
 	n, err := w.putByType(v, t)
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
-func (w *BufWriter) putByType(v interface{}, t ProtoType) (n int, err error) {
+func (w *writer) putByType(v interface{}, t ProtoType) (n int, err error) {
 	val := reflect.ValueOf(v)
 	if val.Kind() == reflect.Ptr || val.Kind() == reflect.Interface {
 		val = val.Elem()

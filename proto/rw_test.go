@@ -1,7 +1,6 @@
 package proto
 
 import (
-	"bufio"
 	"bytes"
 	"github.com/stretchr/testify/assert"
 	"reflect"
@@ -11,8 +10,8 @@ import (
 func TestReaderWriterWithKind(t *testing.T) {
 	assert := assert.New(t)
 	buf := bytes.NewBufferString("")
-	r := BufReader{bufio.NewReader(buf)}
-	w := BufWriter{bufio.NewWriter(buf)}
+	r := NewReader(buf)
+	w := NewWriter(buf)
 	tests := []struct {
 		data []byte
 		v    interface{}
@@ -34,7 +33,6 @@ func TestReaderWriterWithKind(t *testing.T) {
 		r.Get(&i, t.k)
 		assert.EqualValues(i, t.v)
 		w.Put(i)
-		w.Flush()
 		r.Get(&i, t.k)
 		assert.EqualValues(i, t.v)
 	}
@@ -42,8 +40,8 @@ func TestReaderWriterWithKind(t *testing.T) {
 func TestReaderWriterWithType(t *testing.T) {
 	assert := assert.New(t)
 	buf := bytes.NewBufferString("")
-	r := BufReader{bufio.NewReader(buf)}
-	w := BufWriter{bufio.NewWriter(buf)}
+	r := NewReader(buf)
+	w := NewWriter(buf)
 	tests := []struct {
 		v interface{}
 		t ProtoType
@@ -65,7 +63,6 @@ func TestReaderWriterWithType(t *testing.T) {
 	var i interface{}
 	for _, t := range tests {
 		w.Put(t.v, t.t)
-		w.Flush()
 		r.Get(&i, t.t)
 		assert.EqualValues(t.v, i)
 		assert.Equal(0, buf.Len())

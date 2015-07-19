@@ -192,6 +192,16 @@ type WriteRowsEventV1 RowsEvent
 func (p *WriteRowsEventV1) EventType() EventType {
 	return WRITE_ROWS_EVENTv1
 }
+func (p *WriteRowsEventV1) Write(c Writer) {
+	c.Put(&p.TableId, proto.Int6, &p.Flag, &p.ColumnCount)
+	c.Put(&p.AfterColumns, proto.StrVar, (p.ColumnCount+7)/8)
+
+	tab := c.TableMap(p.TableId)
+	included := bitSet{int(p.ColumnCount), p.AfterColumns}
+	for _, row := range p.After {
+		writeRow(row, tab, included, c)
+	}
+}
 func (p *WriteRowsEventV1) Read(c Reader) {
 	p.Before = nil
 	p.After = nil

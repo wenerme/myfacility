@@ -44,7 +44,6 @@ type Writer interface {
 	// Pet(&value,Int,&n)
 	// Pet(n, IgnoreByte)
 	Put(...interface{})
-	Flush() error
 }
 
 // General protocol types
@@ -84,7 +83,7 @@ func NewWriter(rd io.Writer) Writer {
 	if r, ok := rd.(Writer); ok {
 		return r
 	}
-	return &BufWriter{bufio.NewWriter(rd)}
+	return &writer{rd}
 }
 
 func checkInt(v interface{}) (i int, ok bool) {

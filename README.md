@@ -4,13 +4,24 @@ MySQL Facility in Go
 * Tools
 	* myproxy
 		* Proxy for MySQL-Server in Go
-	* [ ] mymon
+		* [ ] Packet proxy
+		* [ ] Binlog proxy
+	* mymon
 		* MySQL monitor by packet capture
+		* [ ] Monitor packet
+		* [ ] Monitor binlog
 * Libraries
 	* proto
 		* Speak MySQL protocol in go way
+		* [x] Read packet
+		* [x] Write packet
 	* binlog
 		* MySQL binlog replication protocol in go
+		* [x] Read binary log
+		* [ ] Write binary log
+		* [ ] Semi-Synchronization
+		* [ ] Binlog client
+		* [ ] Binlog server
 	* [ ] server
 		* MySQL server
 	* [ ] index

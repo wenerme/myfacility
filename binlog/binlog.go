@@ -40,9 +40,53 @@ type bitSet struct {
 	array []byte
 }
 
+func (b *bitSet) Set(pos int) {
+
+}
 func (b *bitSet) Has(pos int) bool {
 	n := pos / 8
 	return b.array[n]&(1<<uint8(pos%8)) > 0
+}
+
+func writeRow(row []interface{}, tab *TableMapEvent, included bitSet, c proto.Writer) {
+	columns := len(tab.ColumnTypes)
+	nulls := bitSet{array: make([]byte, (columns+7)/8)}
+	for i, v := range row {
+		if v == nil {
+			nulls.Set(i)
+		}
+	}
+	c.Put(&nulls.array, proto.StrVar, (columns+7)/8)
+	for i, v := range row {
+		if !included.Has(int(i)) {
+			continue
+		}
+		if nulls.Has(int(i)) {
+			continue
+		}
+		t, meta, l := proto.ColumnType(tab.ColumnTypes[i]), tab.ColumnMetadata[i], 0
+		if t == proto.MYSQL_TYPE_STRING {
+			// big endian here
+			meta = (meta & 0xFF << 8) | (meta >> 8)
+			if meta >= 256 {
+				meta0, meta1 := uint8(meta>>8), uint8(meta)
+				if (meta0 & 0x30) != 0x30 {
+					t = proto.ColumnType(meta0 | 0x30)
+					l = int(meta1) | (((int(meta0) & 0x30) ^ 0x30) << 4)
+				} else {
+					// mysql-5.6.24 sql/rpl_utility.h enum_field_types (line 278)
+					mt := proto.ColumnType(meta0)
+					if mt == proto.MYSQL_TYPE_ENUM || mt == proto.MYSQL_TYPE_SET {
+						t = mt
+					}
+					l = int(meta1)
+				}
+			} else {
+				l = int(meta)
+			}
+		}
+		writeCell(v, t, meta, l, c)
+	}
 }
 
 func readRow(tab *TableMapEvent, included bitSet, c proto.Reader) []interface{} {
@@ -83,6 +127,10 @@ func readRow(tab *TableMapEvent, included bitSet, c proto.Reader) []interface{} 
 	}
 
 	return row
+}
+
+func writeCell(v interface{}, t proto.ColumnType, meta uint, length int, c proto.Writer) {
+	// TODO
 }
 
 func readCell(t proto.ColumnType, meta uint, length int, c proto.Reader) interface{} {

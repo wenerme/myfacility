@@ -93,7 +93,7 @@ func (p *Handshake) Write(c Proto) {
 	if ca.Has(CLIENT_PLUGIN_AUTH) {
 		c.Put(uint8(len(p.Challenge2) + 8 + 1))
 	} else {
-		c.PutZero(1)
+		c.Put(1, IgnoreByte)
 	}
 
 	//string[10]     reserved (all [00])

@@ -57,9 +57,9 @@ func (p *ColumnDefinition) Write(c Proto) {
 		&p.ColumnLength,
 		&p.Type,
 		&p.Flags,
-		&p.Decimals)
-	c.PutZero(2) // filter
-
+		&p.Decimals,
+		2, IgnoreByte, // filter
+	)
 	if c.Com() == COM_FIELD_LIST {
 		if p.DefaultValues == nil {
 			c.Put(uint8(0xfb))

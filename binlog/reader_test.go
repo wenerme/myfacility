@@ -74,7 +74,6 @@ func writeToBytes(p interface{}, ctx *context) []byte {
 	} else {
 		panic(fmt.Sprintf("No way to write %T", p))
 	}
-	c.Flush()
 	return buf.Bytes()
 }
 func readFromBytes(p interface{}, b []byte, ctx *context) {
