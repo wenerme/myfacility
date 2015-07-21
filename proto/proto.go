@@ -37,3 +37,11 @@ type Proto interface {
 	Com() CommandType
 	SetCom(CommandType)
 }
+
+// A empty pack
+var NilPack Pack = nilPack{}
+
+type nilPack struct{}
+
+func (nilPack) Read(Proto)  {}
+func (nilPack) Write(Proto) {}

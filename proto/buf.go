@@ -8,43 +8,44 @@ import (
 	"io"
 )
 
-type Buffer struct {
+// A proto implement
+type buffer struct {
 	Reader
 	Writer
-	buf *bytes.Buffer
-	con io.ReadWriter
-	cap Capability
-	com CommandType
-	seq uint8
+	buf  *bytes.Buffer
+	conn io.ReadWriter
+	cap  Capability
+	com  CommandType
+	seq  uint8
 }
 
-func NewBuffer(con io.ReadWriter, buf *bytes.Buffer) *Buffer {
+func NewProto(conn io.ReadWriter, buf *bytes.Buffer) Proto {
 	if buf == nil {
 		buf = bytes.NewBufferString("")
 	}
-	b := &Buffer{buf: buf, con: con}
+	b := &buffer{buf: buf, conn: conn}
 	b.Reader = NewReader(buf)
 	b.Writer = NewWriter(buf)
 	return b
 }
 
-func (r *Buffer) SetSeq(seq uint8) {
+func (r *buffer) SetSeq(seq uint8) {
 	r.seq = seq
 }
-func (r *Buffer) Seq() uint8 {
+func (r *buffer) Seq() uint8 {
 	return r.seq
 }
-func (r *Buffer) SetCap(cap Capability) {
+func (r *buffer) SetCap(cap Capability) {
 	r.cap = cap
 }
-func (r *Buffer) Cap() Capability {
+func (r *buffer) Cap() Capability {
 	return r.cap
 }
-func (r *Buffer) HasCap(cap Capability) bool {
+func (r *buffer) HasCap(cap Capability) bool {
 	return r.cap.Has(cap)
 }
 
-func (b *Buffer) RecvReadPacket(p Pack) (n int, err error) {
+func (b *buffer) RecvReadPacket(p Pack) (n int, err error) {
 	n, err = b.RecvPacket()
 	if err != nil {
 		return
@@ -53,57 +54,57 @@ func (b *Buffer) RecvReadPacket(p Pack) (n int, err error) {
 	p.Read(b)
 	return
 }
-func (b *Buffer) WriteSendPacket(p Pack) (n int, err error) {
+func (b *buffer) WriteSendPacket(p Pack) (n int, err error) {
 	p.Write(b)
 
 	n, err = b.SendPacket()
 	return
 }
-func (b *Buffer) ReadPacket(p Pack) {
+func (b *buffer) ReadPacket(p Pack) {
 	p.Read(b)
 }
-func (b *Buffer) WritePacket(p Pack) {
+func (b *buffer) WritePacket(p Pack) {
 	p.Write(b)
 }
-func (b *Buffer) MustRecvPacket() int {
+func (b *buffer) MustRecvPacket() int {
 	n, err := b.RecvPacket()
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
-func (b *Buffer) MustSendPacket() int {
+func (b *buffer) MustSendPacket() int {
 	n, err := b.SendPacket()
 	if err != nil {
 		panic(err)
 	}
 	return n
 }
-func (b *Buffer) RecvPacket() (n int, err error) {
+func (b *buffer) RecvPacket() (n int, err error) {
 	var l uint32
-	err = binary.Read(b.con, binary.LittleEndian, &l)
+	err = binary.Read(b.conn, binary.LittleEndian, &l)
 	if err != nil {
 		return
 	}
 	b.seq = uint8(l >> 24)
 	l = l << 8 >> 8
 	var written int64
-	written, err = io.CopyN(b.buf, b.con, int64(l))
+	written, err = io.CopyN(b.buf, b.conn, int64(l))
 	n = 4 + int(written)
 	if log.IsEnabledFor(logging.DEBUG) {
 		log.Debug("Recv packet#%d (%d)\n%s", b.seq, n, hex.Dump(b.buf.Bytes()))
 	}
 	return
 }
-func (b *Buffer) SendPacket() (n int, err error) {
+func (b *buffer) SendPacket() (n int, err error) {
 	var l uint32
 	l = uint32(len(b.buf.Bytes()))
 	l = l | (uint32(b.seq) << 24)
-	err = binary.Write(b.con, binary.LittleEndian, l)
+	err = binary.Write(b.conn, binary.LittleEndian, l)
 	if err != nil {
 		return
 	}
-	n, err = b.con.Write(b.buf.Bytes())
+	n, err = b.conn.Write(b.buf.Bytes())
 	n += 4
 	if log.IsEnabledFor(logging.DEBUG) {
 		log.Debug("Send packet#%d (%d)\n%s", b.seq, n, hex.Dump(b.buf.Bytes()))
@@ -113,9 +114,13 @@ func (b *Buffer) SendPacket() (n int, err error) {
 	return
 }
 
-func (r *Buffer) SetCom(com CommandType) {
+func (r *buffer) SetCom(com CommandType) {
 	r.com = com
 }
-func (r *Buffer) Com() CommandType {
+func (r *buffer) Com() CommandType {
 	return r.com
+}
+
+func (r *buffer) Conn() io.ReadWriter {
+	return r.conn
 }

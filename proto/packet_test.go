@@ -15,7 +15,7 @@ func TestPacketCoder(t *testing.T) {
 
 	data := []byte{0x01, 00, 00, 0x2, 0x01}
 
-	buf := NewBuffer(bytes.NewBuffer(data), nil)
+	buf := NewProto(bytes.NewBuffer(data), nil)
 	n, err := buf.RecvPacket()
 	assert.NoError(err)
 	assert.EqualValues(5, n)

@@ -37,7 +37,7 @@ func assertCodec(data []byte, p Pack, c Capability, args ...interface{}) {
 	var write, payload []byte
 
 	buf := bytes.NewBufferString("")
-	proto := NewBuffer(buf, nil)
+	proto := NewProto(buf, nil)
 	buf.Write(data)
 
 	for _, arg := range args {
@@ -72,7 +72,7 @@ func assertCodec(data []byte, p Pack, c Capability, args ...interface{}) {
 		panic(err)
 	}
 	proto.ReadPacket(p)
-	payload = proto.buf.Bytes()
+	payload = proto.(*buffer).buf.Bytes()
 	if flag.Has(DumpPayload) {
 		fmt.Printf("Payload :\n%s\n", payload)
 	}

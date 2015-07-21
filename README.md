@@ -39,5 +39,5 @@ Motivation
 
 See Also
 ========
-* [JSS - Java sql server]()
+* [JSS - Java SQL Server]()
 	* Same as myfacility, with a bad design, not complete.

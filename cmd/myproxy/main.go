@@ -75,8 +75,8 @@ func proxy(svr net.Conn, cli net.Conn) {
 	}()
 	cliBufReader := bufio.NewReader(cli)
 	cliBufWriter := bufio.NewWriter(cli)
-	cp := NewBuffer(bufio.NewReadWriter(cliBufReader, cliBufWriter), nil)
-	sp := NewBuffer(svr, nil)
+	cp := NewProto(bufio.NewReadWriter(cliBufReader, cliBufWriter), nil)
+	sp := NewProto(svr, nil)
 	_, _ = cp, sp
 	phase := READ_HANDSHAKE
 	var next Mode

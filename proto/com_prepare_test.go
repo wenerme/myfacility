@@ -27,7 +27,7 @@ fd 80 00 00 00 00 05 00    00 04 fe 00 00 02 00 1a    ................
 06 fe 00 00 02 00                                     ......
 `
 	data := bytes.NewBuffer(DecodeDump(dump))
-	b := NewBuffer(data, nil)
+	b := NewProto(data, nil)
 	b.SetCap(CLIENT_BASIC_FLAGS)
 	p := ComStmtPrepareOK{}
 	p.Read(b)

@@ -275,7 +275,7 @@ func NewCommandPacketMap() map[CommandType]CommandPack {
 		COM_STATISTICS:          ComStatistics,
 		COM_PROCESS_INFO:        ComProcessInfo,
 		COM_CONNECT:             ComConnect,
-		COM_PROCESS_KILL:        ComProcessInfo,
+		COM_PROCESS_KILL:        &ComProcessKill{},
 		COM_DEBUG:               ComDebug,
 		COM_PING:                ComPing,
 		COM_TIME:                ComTime,

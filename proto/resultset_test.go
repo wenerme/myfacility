@@ -21,7 +21,7 @@ func TestQueryResponse(t *testing.T) {
 `
 	_ = assert
 	buf := bytes.NewBuffer(DecodeDump(dump))
-	b := NewBuffer(buf, nil)
+	b := NewProto(buf, nil)
 	b.SetCap(CLIENT_BASIC_FLAGS)
 	rs := &QueryResponse{}
 	rs.Read(b)
@@ -76,7 +76,7 @@ func TestQueryResponseLong(t *testing.T) {
 `
 	_ = assert
 	buf := bytes.NewBuffer(DecodeDump(dump))
-	b := NewBuffer(buf, nil)
+	b := NewProto(buf, nil)
 	b.SetCap(CLIENT_BASIC_FLAGS)
 	rs := &QueryResponse{}
 	rs.Read(b)
